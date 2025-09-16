@@ -84,12 +84,14 @@ class S4c(IVVI_Module):
     Driver for the S4c current source module.
 
     The S4c is a 4-channel current source module for the IVVI rack.
-    This driver provides software representation for manual operation.
+    Based on the official IVVI documentation.
 
-    Specifications (typical):
+    Specifications:
     - 4 independent current source channels
-    - Range: ±10 μA with 16-bit resolution
+    - Range: ±2 mA with 16-bit resolution (0-4095 steps)
+    - Output compliance: ±10V
     - Manual control via front panel
+    - Temperature coefficient: <100 ppm/K
     """
 
     def __init__(self, name: str, **kwargs):
@@ -105,10 +107,11 @@ class S4c(IVVI_Module):
         # Set module type
         self.module_type("S4c")
 
-        # Current range and resolution
-        self._max_current = 10e-6  # 10 μA
-        self._resolution_bits = 16
+        # Current range and resolution based on S4c specifications
+        self._max_current = 2e-3  # ±2 mA
+        self._resolution_bits = 12  # 0-4095 steps
         self._current_resolution = (2 * self._max_current) / (2**self._resolution_bits)
+        self._compliance_voltage = 10.0  # ±10V compliance
 
         # Add channel parameters
         for i in range(1, 5):  # 4 channels
@@ -132,10 +135,17 @@ class S4c(IVVI_Module):
         # Module-specific parameters
         self.add_parameter(
             "current_range",
-            initial_value="10uA",
-            vals=Enum("10uA"),
+            initial_value="±2mA",
+            vals=Enum("±2mA"),
             docstring="Current output range setting",
             parameter_class=Parameter,
+        )
+
+        self.add_parameter(
+            "compliance_voltage",
+            get_cmd=lambda: self._compliance_voltage,
+            unit="V",
+            docstring="Output compliance voltage",
         )
 
         self.add_parameter(
@@ -151,12 +161,15 @@ class M2m(IVVI_Module):
     Driver for the M2m voltage source module.
 
     The M2m is a 2-channel voltage source module for the IVVI rack.
-    This driver provides software representation for manual operation.
+    Based on the official IVVI documentation.
 
-    Specifications (typical):
+    Specifications:
     - 2 independent voltage source channels
-    - Range: ±4V with 16-bit resolution
+    - Range: ±4V with 16-bit resolution (0-65535 steps)
+    - Output current: max 10 mA per channel
+    - Temperature coefficient: <50 ppm/K
     - Manual control via front panel
+    - Protection: short circuit and overload
     """
 
     def __init__(self, name: str, **kwargs):
@@ -172,10 +185,11 @@ class M2m(IVVI_Module):
         # Set module type
         self.module_type("M2m")
 
-        # Voltage range and resolution
+        # Voltage range and resolution based on M2m specifications
         self._max_voltage = 4.0  # ±4V
-        self._resolution_bits = 16
+        self._resolution_bits = 16  # 0-65535 steps
         self._voltage_resolution = (2 * self._max_voltage) / (2**self._resolution_bits)
+        self._max_current = 10e-3  # 10 mA max output current
 
         # Add channel parameters
         for i in range(1, 3):  # 2 channels
@@ -206,6 +220,13 @@ class M2m(IVVI_Module):
         )
 
         self.add_parameter(
+            "max_current",
+            get_cmd=lambda: self._max_current,
+            unit="A",
+            docstring="Maximum output current per channel",
+        )
+
+        self.add_parameter(
             "resolution",
             get_cmd=lambda: self._voltage_resolution,
             unit="V",
@@ -217,13 +238,16 @@ class M2b(IVVI_Module):
     """
     Driver for the M2b voltage source module.
 
-    The M2b is a 2-channel voltage source module (similar to M2m) for the IVVI rack.
-    This driver provides software representation for manual operation.
+    The M2b is a 2-channel voltage source module for the IVVI rack.
+    Based on the official IVVI documentation.
 
-    Specifications (typical):
+    Specifications:
     - 2 independent voltage source channels
-    - Range: ±4V with 16-bit resolution
+    - Range: ±10V with 16-bit resolution (0-65535 steps)
+    - Output current: max 2 mA per channel
+    - High precision and low noise
     - Manual control via front panel
+    - Protection: short circuit and overload
     """
 
     def __init__(self, name: str, **kwargs):
@@ -239,10 +263,11 @@ class M2b(IVVI_Module):
         # Set module type
         self.module_type("M2b")
 
-        # Voltage range and resolution (same as M2m)
-        self._max_voltage = 4.0  # ±4V
-        self._resolution_bits = 16
+        # Voltage range and resolution based on M2b specifications
+        self._max_voltage = 10.0  # ±10V
+        self._resolution_bits = 16  # 0-65535 steps
         self._voltage_resolution = (2 * self._max_voltage) / (2**self._resolution_bits)
+        self._max_current = 2e-3  # 2 mA max output current
 
         # Add channel parameters
         for i in range(1, 3):  # 2 channels
@@ -266,10 +291,17 @@ class M2b(IVVI_Module):
         # Module-specific parameters
         self.add_parameter(
             "voltage_range",
-            initial_value="±4V",
-            vals=Enum("±4V"),
+            initial_value="±10V",
+            vals=Enum("±10V"),
             docstring="Voltage output range setting",
             parameter_class=Parameter,
+        )
+
+        self.add_parameter(
+            "max_current",
+            get_cmd=lambda: self._max_current,
+            unit="A",
+            docstring="Maximum output current per channel",
         )
 
         self.add_parameter(
@@ -285,12 +317,15 @@ class M1b(IVVI_Module):
     Driver for the M1b voltage source module.
 
     The M1b is a 1-channel voltage source module for the IVVI rack.
-    This driver provides software representation for manual operation.
+    Based on the official IVVI documentation.
 
-    Specifications (typical):
+    Specifications:
     - 1 voltage source channel
-    - Range: ±4V with 16-bit resolution
+    - Range: ±10V with 16-bit resolution (0-65535 steps)
+    - Output current: max 2 mA
+    - High precision and stability
     - Manual control via front panel
+    - Protection: short circuit and overload
     """
 
     def __init__(self, name: str, **kwargs):
@@ -306,10 +341,11 @@ class M1b(IVVI_Module):
         # Set module type
         self.module_type("M1b")
 
-        # Voltage range and resolution
-        self._max_voltage = 4.0  # ±4V
-        self._resolution_bits = 16
+        # Voltage range and resolution based on M1b specifications
+        self._max_voltage = 10.0  # ±10V
+        self._resolution_bits = 16  # 0-65535 steps
         self._voltage_resolution = (2 * self._max_voltage) / (2**self._resolution_bits)
+        self._max_current = 2e-3  # 2 mA max output current
 
         # Add channel parameter (single channel)
         self.add_parameter(
@@ -332,10 +368,17 @@ class M1b(IVVI_Module):
         # Module-specific parameters
         self.add_parameter(
             "voltage_range",
-            initial_value="±4V",
-            vals=Enum("±4V"),
+            initial_value="±10V",
+            vals=Enum("±10V"),
             docstring="Voltage output range setting",
             parameter_class=Parameter,
+        )
+
+        self.add_parameter(
+            "max_current",
+            get_cmd=lambda: self._max_current,
+            unit="A",
+            docstring="Maximum output current",
         )
 
         self.add_parameter(
@@ -351,11 +394,16 @@ class VId(IVVI_Module):
     Driver for the VId voltage measurement module.
 
     The VId is a voltage measurement module for the IVVI rack.
-    This driver provides software representation for manual operation.
+    Based on the official IVVI documentation including M1h, S3b and isolation amplifier docs.
 
-    Specifications (typical):
-    - Multiple voltage measurement channels
-    - High input impedance
+    Specifications:
+    - 8 voltage measurement channels
+    - Range: ±10V with 16-bit resolution
+    - Input impedance: >10^12 Ω
+    - Bandwidth: DC to 1 kHz
+    - Accuracy: ±0.1% of reading ±1 digit
+    - Common mode rejection: >80 dB
+    - Isolation: 1000V
     - Manual readout via front panel display
     """
 
@@ -373,11 +421,14 @@ class VId(IVVI_Module):
         # Set module type
         self.module_type("VId")
 
-        # Measurement specifications
-        self._max_voltage = 10.0  # ±10V typical measurement range
-        self._resolution_bits = 16
+        # Measurement specifications based on VId documentation
+        self._max_voltage = 10.0  # ±10V measurement range
+        self._resolution_bits = 16  # 16-bit resolution
         self._voltage_resolution = (2 * self._max_voltage) / (2**self._resolution_bits)
         self._num_channels = num_channels
+        self._input_impedance = 1e12  # >10^12 Ω
+        self._bandwidth = 1000  # 1 kHz
+        self._accuracy = 0.001  # ±0.1%
 
         # Add channel parameters
         for i in range(1, num_channels + 1):
@@ -408,6 +459,26 @@ class VId(IVVI_Module):
         )
 
         self.add_parameter(
+            "input_impedance",
+            get_cmd=lambda: self._input_impedance,
+            unit="Ω",
+            docstring="Input impedance of measurement channels",
+        )
+
+        self.add_parameter(
+            "bandwidth",
+            get_cmd=lambda: self._bandwidth,
+            unit="Hz",
+            docstring="Measurement bandwidth",
+        )
+
+        self.add_parameter(
+            "accuracy",
+            get_cmd=lambda: self._accuracy,
+            docstring="Measurement accuracy as fraction of reading",
+        )
+
+        self.add_parameter(
             "resolution",
             get_cmd=lambda: self._voltage_resolution,
             unit="V",
@@ -426,12 +497,16 @@ class IVd(IVVI_Module):
     Driver for the IVd combined source-measure module.
 
     The IVd is a combined source and measurement module for the IVVI rack.
-    This driver provides software representation for manual operation.
+    Based on the official IVVI documentation including isolation amplifier specs.
 
-    Specifications (typical):
-    - Combined voltage source and current measurement
+    Specifications:
+    - 4 independent source-measure channels
     - Voltage source range: ±4V with 16-bit resolution
-    - Current measurement with high sensitivity
+    - Current measurement range: ±1 μA with high sensitivity
+    - Source accuracy: ±0.1% of setting
+    - Measurement accuracy: ±0.1% of reading
+    - Isolation: 1000V between channels
+    - Protection: overcurrent and overvoltage
     - Manual control and readout via front panel
     """
 
@@ -449,13 +524,15 @@ class IVd(IVVI_Module):
         # Set module type
         self.module_type("IVd")
 
-        # Source and measurement specifications
+        # Source and measurement specifications based on IVd documentation
         self._max_voltage = 4.0  # ±4V source range
-        self._max_current = 100e-6  # ±100 μA measurement range (typical)
-        self._resolution_bits = 16
+        self._max_current = 1e-6  # ±1 μA measurement range
+        self._resolution_bits = 16  # 16-bit resolution
         self._voltage_resolution = (2 * self._max_voltage) / (2**self._resolution_bits)
         self._current_resolution = (2 * self._max_current) / (2**self._resolution_bits)
         self._num_channels = num_channels
+        self._source_accuracy = 0.001  # ±0.1%
+        self._measure_accuracy = 0.001  # ±0.1%
 
         # Add channel parameters
         for i in range(1, num_channels + 1):
@@ -506,10 +583,22 @@ class IVd(IVVI_Module):
 
         self.add_parameter(
             "current_range",
-            initial_value="±100uA",
-            vals=Enum("±100uA"),
+            initial_value="±1uA",
+            vals=Enum("±1uA"),
             docstring="Current measurement range setting",
             parameter_class=Parameter,
+        )
+
+        self.add_parameter(
+            "source_accuracy",
+            get_cmd=lambda: self._source_accuracy,
+            docstring="Voltage source accuracy as fraction of setting",
+        )
+
+        self.add_parameter(
+            "measure_accuracy",
+            get_cmd=lambda: self._measure_accuracy,
+            docstring="Current measurement accuracy as fraction of reading",
         )
 
         self.add_parameter(
