@@ -10,6 +10,7 @@ on:
       - 'release/*'
       - 'staging'
       - 'trying'
+      - '*'
     tags:
       - 'v*'
   pull_request:
