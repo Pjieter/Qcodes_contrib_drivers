@@ -23,7 +23,7 @@ devices:
     properties:
       # Measurement function mode
       function:
-        default: '"VOLT:DC"'
+        default: "\"VOLT:DC\""
         getter:
           q: "SENS:FUNC?"
           r: "{}"
