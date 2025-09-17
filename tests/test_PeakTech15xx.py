@@ -18,3 +18,10 @@ def test_init(driver):
     idn_dict = driver.get_idn()
     assert idn_dict["vendor"] == "PeakTech"
     assert idn_dict["model"] == "15xx (Simulated)"
+
+def test_sense_function(driver):
+    """
+    Test that the sense function parameter returns the expected value.
+    """
+    sense_func = driver.sense_function()
+    assert sense_func == "VOLT"

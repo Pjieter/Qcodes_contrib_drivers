@@ -25,7 +25,8 @@ class PeakTech15xx(VisaInstrument):
         current_limit (Parameter): Set or get the preset upper limit of current.
         voltage (Parameter): Get the measured voltage from the power supply.
         current (Parameter): Get the measured current from the power supply.
-        status (Parameter): Get the status of the power supply (CV or CC mode).
+        mode (Parameter): Get the mode of the power supply (CV or CC mode).
+        sense_function (Parameter): Get the sensing function of the instrument.
 
     Methods:
         get_idn(): Get the instrument identification information.
@@ -205,6 +206,16 @@ class PeakTech15xx(VisaInstrument):
         Values:
             'CV': Constant Voltage mode
             'CC': Constant Current mode
+        """
+
+        self.sense_function: Parameter = self.add_parameter(
+            "sense_function",
+            label="Sense Function",
+            get_cmd=":SENS:FUNC?",
+            docstring="Get the sensing function of the instrument."
+        )
+        """
+        Get the sensing function of the instrument.
         """
 
         if not self._simulated:
