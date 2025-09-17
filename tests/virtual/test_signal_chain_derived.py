@@ -1,6 +1,5 @@
 """Test derived math calculations for SignalChain."""
 
-import pytest
 import warnings
 from unittest.mock import Mock, MagicMock
 

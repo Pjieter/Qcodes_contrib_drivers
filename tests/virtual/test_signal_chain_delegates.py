@@ -1,6 +1,5 @@
 """Test delegate parameter functionality and frequency coupling."""
 
-import pytest
 from unittest.mock import Mock, MagicMock
 
 # Mock QCoDeS for testing
