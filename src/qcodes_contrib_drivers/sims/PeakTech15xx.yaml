@@ -8,6 +8,8 @@ devices:
     dialogues:
       - q: "GMAX"
         r: "162430\rOK"
+      - q: ":SENS:FUNC?"
+        r: "VOLT"
 
 resources:
   ASRL1::INSTR:
