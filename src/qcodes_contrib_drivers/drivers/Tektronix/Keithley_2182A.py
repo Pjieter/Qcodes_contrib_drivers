@@ -92,7 +92,7 @@ class Keithley2182A(VisaInstrument):
 
         # Mode mapping for measurement functions
         self._mode_map = {
-            "dc voltage": '"VOLT:DC"',
+            "dc voltage": '"VOLT"',
             "temperature": '"TEMP"',
         }
 
