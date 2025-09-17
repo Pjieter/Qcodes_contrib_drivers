@@ -11,13 +11,14 @@ https://qtwork.tudelft.nl/~schouten/ivvi/index-ivvi.htm
 Author: QCoDeS Community
 """
 
+from abc import ABC, abstractmethod
 from typing import Optional, Union
 from qcodes.instrument import Instrument
 from qcodes.parameters import Parameter
 from qcodes.validators import Numbers, Enum
 
 
-class IVVI_Module(Instrument):
+class IVVI_Module(Instrument, ABC):
     """
     Base class for manual IVVI rack modules.
 
@@ -37,6 +38,10 @@ class IVVI_Module(Instrument):
             name: Name of the instrument instance
             **kwargs: Additional keyword arguments passed to parent Instrument
         """
+        if self.__class__ is IVVI_Module:
+            raise TypeError("IVVI_Module is an abstract base class and cannot be instantiated directly. "
+                          "Use a specific module class like S4c, M2m, etc.")
+                          
         super().__init__(name, **kwargs)
 
         # Common parameters for manual tracking
@@ -81,22 +86,27 @@ class IVVI_Module(Instrument):
 
 class S4c(IVVI_Module):
     """
-    Driver for the S4c current source module.
+    Driver for the S4c Current/Voltage source module.
 
-    The S4c is a 4-channel current source module for the IVVI rack.
-    Based on the official IVVI documentation.
+    This module is designed as a versatile source for V-I or I-V measurements.
+    Based on the official IVVI S4c documentation.
 
-    Specifications:
-    - 4 independent current source channels
-    - Range: ±2 mA with 16-bit resolution (0-4095 steps)
-    - Output compliance: ±10V
-    - Manual control via front panel
-    - Temperature coefficient: <100 ppm/K
+    The S4c can operate in multiple modes:
+    - [V] voltage source with current limit (1nA to 20mA range)
+    - [V+R] voltage source with output resistance setting (1GΩ to 50Ω)
+    - [I] current source with current range setting (1nA to 20mA/V)
+
+    Features:
+    - Buffered monitor outputs for source-measure-unit operation
+    - Configurable output resistance via R-out switch
+    - Single or symmetric output modes
+    - Two control inputs: x1 and x0.01 for DC sweep and modulation
+    - Overload protection with LED indicators
     """
 
     def __init__(self, name: str, **kwargs):
         """
-        Initialize S4c current source module.
+        Initialize S4c current/voltage source module.
 
         Args:
             name: Name of the instrument instance
@@ -107,53 +117,193 @@ class S4c(IVVI_Module):
         # Set module type
         self.module_type("S4c")
 
-        # Current range and resolution based on S4c specifications
-        self._max_current = 2e-3  # ±2 mA
-        self._resolution_bits = 12  # 0-4095 steps
-        self._current_resolution = (2 * self._max_current) / (2**self._resolution_bits)
-        self._compliance_voltage = 10.0  # ±10V compliance
-
-        # Add channel parameters
-        for i in range(1, 5):  # 4 channels
-            self.add_parameter(
-                f"ch{i}_current",
-                initial_value=0.0,
-                unit="A",
-                vals=Numbers(-self._max_current, self._max_current),
-                docstring=f"Channel {i} current setting (manually set on device)",
-                parameter_class=Parameter,
-            )
-
-            self.add_parameter(
-                f"ch{i}_enabled",
-                initial_value=False,
-                vals=Enum(True, False),
-                docstring=f"Channel {i} output enable state",
-                parameter_class=Parameter,
-            )
-
-        # Module-specific parameters
+        # Source mode configuration
         self.add_parameter(
-            "current_range",
-            initial_value="±2mA",
-            vals=Enum("±2mA"),
-            docstring="Current output range setting",
+            "source_mode",
+            initial_value="V",
+            vals=Enum("V", "V+R", "I"),
+            docstring="Source operating mode: V (voltage), V+R (voltage+resistance), I (current)",
+            parameter_class=Parameter,
+        )
+
+        # Range settings (affects current limit, output resistance, or current range)
+        self.add_parameter(
+            "range_setting",
+            initial_value="1uA",
+            vals=Enum("1nA", "10nA", "100nA", "1uA", "10uA", "100uA", "1mA", "10mA", "20mA"),
+            docstring="Range setting - interpretation depends on source mode",
+            parameter_class=Parameter,
+        )
+
+        # Output resistance setting
+        self.add_parameter(
+            "output_resistance_mode",
+            initial_value="R/1000",
+            vals=Enum("R/1000", "R/10"),
+            docstring="Output resistance mode: R/1000 (highest accuracy), R/10 (lowest noise)",
+            parameter_class=Parameter,
+        )
+
+        # Output mode configuration
+        self.add_parameter(
+            "output_mode",
+            initial_value="single",
+            vals=Enum("single", "symmetric"),
+            docstring="Output mode: single (pin 4 out, pin 2 ground) or symmetric (pin 4 out, pin 2 -out)",
+            parameter_class=Parameter,
+        )
+
+        # Control input configuration
+        self.add_parameter(
+            "x1_input_enabled",
+            initial_value=True,
+            vals=Enum(True, False),
+            docstring="X1 control input enabled (default enabled)",
             parameter_class=Parameter,
         )
 
         self.add_parameter(
-            "compliance_voltage",
-            get_cmd=lambda: self._compliance_voltage,
+            "x0_01_input_enabled",
+            initial_value=False,
+            vals=Enum(True, False),
+            docstring="X0.01 control input enabled (requires jumper setting)",
+            parameter_class=Parameter,
+        )
+
+        # Output voltage and current (for monitoring/documentation)
+        self.add_parameter(
+            "output_voltage",
+            initial_value=0.0,
             unit="V",
-            docstring="Output compliance voltage",
+            vals=Numbers(-8.0, 8.0),  # Max ±8V in symmetric mode
+            docstring="Output voltage (manually read from V-out LED or measured)",
+            parameter_class=Parameter,
         )
 
         self.add_parameter(
-            "resolution",
-            get_cmd=lambda: self._current_resolution,
+            "output_current",
+            initial_value=0.0,
             unit="A",
-            docstring="Current resolution based on range and DAC bits",
+            vals=Numbers(-20e-3, 20e-3),  # Max ±20mA
+            docstring="Output current (manually set or measured)",
+            parameter_class=Parameter,
         )
+
+        # Monitor outputs for SMU operation
+        self.add_parameter(
+            "voltage_monitor",
+            initial_value=0.0,
+            unit="V",
+            vals=Numbers(-10.0, 10.0),
+            docstring="Voltage monitor output (>10kHz bandwidth)",
+            parameter_class=Parameter,
+        )
+
+        self.add_parameter(
+            "current_monitor",
+            initial_value=0.0,
+            unit="A",
+            vals=Numbers(-20e-3, 20e-3),
+            docstring="Current monitor output (>10kHz bandwidth)",
+            parameter_class=Parameter,
+        )
+
+        # Status indicators
+        self.add_parameter(
+            "clip_indicator",
+            initial_value=False,
+            vals=Enum(True, False),
+            docstring="Overload LED status (voltage exceeds 2-4V)",
+            parameter_class=Parameter,
+        )
+
+        self.add_parameter(
+            "v_unbal_indicator",
+            initial_value=False,
+            vals=Enum(True, False),
+            docstring="Voltage unbalance LED status (symmetric mode only)",
+            parameter_class=Parameter,
+        )
+
+        # Control input values
+        self.add_parameter(
+            "x1_input_voltage",
+            initial_value=0.0,
+            unit="V",
+            vals=Numbers(-10.0, 10.0),
+            docstring="X1 control input voltage (from DAC for DC sweep)",
+            parameter_class=Parameter,
+        )
+
+        self.add_parameter(
+            "x0_01_input_voltage",
+            initial_value=0.0,
+            unit="V",
+            vals=Numbers(-10.0, 10.0),
+            docstring="X0.01 control input voltage (for modulation via iso-amp)",
+            parameter_class=Parameter,
+        )
+
+        # Configuration helper parameters
+        self.add_parameter(
+            "maximum_output_voltage",
+            get_cmd=self._get_max_output_voltage,
+            unit="V",
+            docstring="Maximum output voltage based on current configuration",
+        )
+
+        self.add_parameter(
+            "current_limit",
+            get_cmd=self._get_current_limit,
+            unit="A",
+            docstring="Current limit based on source mode and range setting",
+        )
+
+    def _get_max_output_voltage(self) -> float:
+        """Get maximum output voltage based on configuration."""
+        if self.output_mode() == "symmetric":
+            return 8.0  # ±4V to ±8V in symmetric mode
+        else:
+            return 4.0  # Typical single-ended maximum
+
+    def _get_current_limit(self) -> float:
+        """Get current limit based on source mode and range setting."""
+        range_str = self.range_setting()
+        
+        # Parse range setting to get numeric value
+        if "nA" in range_str:
+            multiplier = 1e-9
+        elif "uA" in range_str:
+            multiplier = 1e-6
+        elif "mA" in range_str:
+            multiplier = 1e-3
+        else:
+            multiplier = 1.0
+            
+        value = float(range_str.replace("nA", "").replace("uA", "").replace("mA", ""))
+        
+        if self.source_mode() == "V":
+            # In voltage mode, range sets current limit (approx 3x range)
+            return 3.0 * value * multiplier
+        else:
+            # In current mode, range is the current range
+            return value * multiplier
+
+    def get_status_summary(self) -> dict:
+        """Get a summary of the current S4c configuration and status."""
+        return {
+            "source_mode": self.source_mode(),
+            "range_setting": self.range_setting(),
+            "output_mode": self.output_mode(),
+            "output_voltage": self.output_voltage(),
+            "output_current": self.output_current(),
+            "max_output_voltage": self.maximum_output_voltage(),
+            "current_limit": self.current_limit(),
+            "clip_indicator": self.clip_indicator(),
+            "v_unbal_indicator": self.v_unbal_indicator(),
+            "x1_enabled": self.x1_input_enabled(),
+            "x0_01_enabled": self.x0_01_input_enabled(),
+        }
 
 
 class M2m(IVVI_Module):

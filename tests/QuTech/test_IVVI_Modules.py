@@ -12,17 +12,9 @@ from qcodes_contrib_drivers.drivers.QuTech.IVVI_Modules import (
 )
 
 
-@pytest.fixture(scope="function", name="base_module")
-def _make_base_module():
-    """Create a base IVVI module for testing."""
-    module = IVVI_Module("test_base")
-    yield module
-    module.close()
-
-
 @pytest.fixture(scope="function", name="s4c")
 def _make_s4c():
-    """Create an S4c current source module for testing."""
+    """Create an S4c current/voltage source module for testing."""
     module = S4c("test_s4c")
     yield module
     module.close()
@@ -68,72 +60,130 @@ def _make_ivd():
     module.close()
 
 
-def test_base_module_idn(base_module) -> None:
-    """Test the base module IDN functionality."""
-    idn = base_module.get_idn()
-    expected_keys = {"vendor", "model", "serial", "firmware"}
-    assert expected_keys == set(idn.keys())
-    assert idn["vendor"] == "QuTech"
-    assert "IVVI" in idn["model"]
-    assert idn["serial"] == "Manual"
-    assert idn["firmware"] == "N/A"
-
-
-def test_base_module_parameters(base_module) -> None:
-    """Test base module common parameters."""
-    # Test setting and getting common parameters
-    base_module.module_type("TestType")
-    base_module.rack_position("Slot 1")
-    base_module.notes("Test notes")
-    
-    assert base_module.module_type() == "TestType"
-    assert base_module.rack_position() == "Slot 1"
-    assert base_module.notes() == "Test notes"
-
-
 def test_s4c_initialization(s4c) -> None:
-    """Test S4c current source initialization."""
+    """Test S4c current/voltage source initialization."""
     assert s4c.name == "test_s4c"
     assert s4c.module_type() == "S4c"
-    assert s4c.current_range() == "±2mA"
+    assert s4c.source_mode() == "V"  # Default voltage mode
+    assert s4c.output_mode() == "single"  # Default single output
+    assert s4c.range_setting() == "1uA"  # Default range
 
 
-def test_s4c_channels_and_parameters(s4c) -> None:
-    """Test S4c channel parameters."""
-    # Check that all 4 channels exist
-    for i in range(1, 5):
-        assert hasattr(s4c, f"ch{i}_current")
-        assert hasattr(s4c, f"ch{i}_enabled")
-        
-        # Test initial values
-        assert s4c.parameters[f"ch{i}_current"]() == 0.0
-        assert s4c.parameters[f"ch{i}_enabled"]() is False
-
-
-def test_s4c_current_setting_and_validation(s4c) -> None:
-    """Test S4c current setting and validation."""
-    # Test valid current setting
-    s4c.ch1_current(1e-3)  # 1 mA
-    assert s4c.ch1_current() == 1e-3
+def test_s4c_source_modes_and_parameters(s4c) -> None:
+    """Test S4c source mode configuration."""
+    # Test source mode configuration
+    s4c.source_mode("I")  # Current mode
+    assert s4c.source_mode() == "I"
     
-    # Test boundary values
-    s4c.ch1_current(2e-3)   # +2 mA (max)
-    s4c.ch1_current(-2e-3)  # -2 mA (min)
+    s4c.source_mode("V+R")  # Voltage with resistance
+    assert s4c.source_mode() == "V+R"
     
-    # Test invalid values should raise
+    # Test range setting
+    s4c.range_setting("10mA")
+    assert s4c.range_setting() == "10mA"
+    
+    # Test output mode
+    s4c.output_mode("symmetric")
+    assert s4c.output_mode() == "symmetric"
+
+
+def test_s4c_output_and_monitoring(s4c) -> None:
+    """Test S4c output and monitoring parameters."""
+    # Test output voltage and current settings
+    s4c.output_voltage(2.5)  # 2.5V
+    assert s4c.output_voltage() == 2.5
+    
+    s4c.output_current(5e-3)  # 5mA
+    assert s4c.output_current() == 5e-3
+    
+    # Test monitor outputs
+    s4c.voltage_monitor(1.2)
+    assert s4c.voltage_monitor() == 1.2
+    
+    s4c.current_monitor(3e-3)
+    assert s4c.current_monitor() == 3e-3
+
+
+def test_s4c_control_inputs(s4c) -> None:
+    """Test S4c control input configuration."""
+    # Test x1 input (default enabled)
+    assert s4c.x1_input_enabled() is True
+    
+    # Test x0.01 input (default disabled)
+    assert s4c.x0_01_input_enabled() is False
+    
+    # Enable x0.01 input
+    s4c.x0_01_input_enabled(True)
+    assert s4c.x0_01_input_enabled() is True
+    
+    # Set control input voltages
+    s4c.x1_input_voltage(3.0)
+    assert s4c.x1_input_voltage() == 3.0
+    
+    s4c.x0_01_input_voltage(0.1)
+    assert s4c.x0_01_input_voltage() == 0.1
+
+
+def test_s4c_status_indicators(s4c) -> None:
+    """Test S4c status indicators."""
+    # Test clip indicator
+    s4c.clip_indicator(True)
+    assert s4c.clip_indicator() is True
+    
+    # Test voltage unbalance indicator (symmetric mode)
+    s4c.v_unbal_indicator(True)
+    assert s4c.v_unbal_indicator() is True
+
+
+def test_s4c_derived_parameters(s4c) -> None:
+    """Test S4c calculated parameters."""
+    # Test maximum output voltage calculation
+    s4c.output_mode("single")
+    assert s4c.maximum_output_voltage() == 4.0
+    
+    s4c.output_mode("symmetric")
+    assert s4c.maximum_output_voltage() == 8.0
+    
+    # Test current limit calculation
+    s4c.source_mode("V")
+    s4c.range_setting("1mA")
+    current_limit = s4c.current_limit()
+    assert current_limit == 3e-3  # 3x 1mA = 3mA
+    
+    s4c.source_mode("I")
+    s4c.range_setting("10uA")
+    current_limit = s4c.current_limit()
+    assert current_limit == 10e-6  # 10μA
+
+
+def test_s4c_status_summary(s4c) -> None:
+    """Test S4c status summary function."""
+    # Configure some parameters
+    s4c.source_mode("I")
+    s4c.range_setting("1mA")
+    s4c.output_voltage(1.5)
+    s4c.output_current(0.5e-3)
+    
+    summary = s4c.get_status_summary()
+    
+    # Verify summary contains expected keys and values
+    assert summary["source_mode"] == "I"
+    assert summary["range_setting"] == "1mA"
+    assert summary["output_voltage"] == 1.5
+    assert summary["output_current"] == 0.5e-3
+    assert "max_output_voltage" in summary
+    assert "current_limit" in summary
+
+
+def test_s4c_validation(s4c) -> None:
+    """Test S4c parameter validation."""
+    # Test voltage range validation
     with pytest.raises(ValueError):
-        s4c.ch1_current(3e-3)  # Too high
-    with pytest.raises(ValueError):
-        s4c.ch1_current(-3e-3)  # Too low
-
-
-def test_s4c_specifications(s4c) -> None:
-    """Test S4c specifications and resolution."""
-    resolution = s4c.resolution()
-    expected_resolution = (2 * 2e-3) / (2**12)  # 4mA / 4096
-    assert abs(resolution - expected_resolution) < 1e-12
+        s4c.output_voltage(10.0)  # Too high (max ±8V)
     
-    assert s4c.compliance_voltage() == 10.0
+    # Test current range validation
+    with pytest.raises(ValueError):
+        s4c.output_current(25e-3)  # Too high (max ±20mA)
 
 
 def test_m2m_initialization(m2m) -> None:
@@ -366,9 +416,10 @@ def test_module_configuration_example() -> None:
         voltmeter.rack_position("Slot 3")
         smu.rack_position("Slot 4")
         
-        # Set some typical values
-        current_source.ch1_enabled(True)
-        current_source.ch1_current(1e-3)  # 1 mA
+        # Configure S4c as current source
+        current_source.source_mode("I")  # Current mode
+        current_source.range_setting("1mA")  # 1mA range
+        current_source.output_current(0.5e-3)  # 0.5 mA
         
         voltage_source.ch1_enabled(True)
         voltage_source.ch1_voltage(2.5)   # 2.5 V
@@ -379,7 +430,8 @@ def test_module_configuration_example() -> None:
         
         # Verify configuration
         assert current_source.rack_position() == "Slot 1"
-        assert current_source.ch1_current() == 1e-3
+        assert current_source.source_mode() == "I"
+        assert current_source.output_current() == 0.5e-3
         assert voltage_source.ch1_voltage() == 2.5
         assert smu.ch1_voltage() == 1.0
         assert smu.ch1_current() == 0.5e-6
