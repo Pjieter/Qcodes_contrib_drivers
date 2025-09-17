@@ -23,7 +23,7 @@ devices:
     properties:
       # Measurement function mode
       function:
-        default: '"VOLT:DC"'
+        default: "\"VOLT:DC\""
         getter:
           q: "SENS:FUNC?"
           r: "{}"
@@ -45,15 +45,12 @@ devices:
       
       # Auto range setting - use ON/OFF strings
       auto_range:
-        default: "ON"
+        default: "1"
         getter:
           q: "SENS:RANG:AUTO?"
           r: "{}"
         setter:
           q: "SENS:RANG:AUTO {}"
-        specs:
-          type: str
-          valid: ["ON", "OFF"]
       
       # NPLC (Number of Power Line Cycles)
       nplc:
@@ -89,17 +86,13 @@ devices:
           type: int
           valid: [50, 60]
       
-      # Averaging enabled - use ON/OFF strings
       averaging_enabled:
-        default: "OFF"
+        default: "0"
         getter:
           q: "SENS:AVER?"
           r: "{}"
         setter:
           q: "SENS:AVER {}"
-        specs:
-          type: str
-          valid: ["ON", "OFF"]
       
       # Averaging count
       averaging_count:
@@ -147,63 +140,48 @@ devices:
       
       # Display enabled - use ON/OFF strings
       display_enabled:
-        default: "ON"
+        default: "1"
         getter:
           q: "DISP:ENAB?"
           r: "{}"
         setter:
           q: "DISP:ENAB {}"
-        specs:
-          type: str
-          valid: ["ON", "OFF"]
       
       # Input impedance auto - use ON/OFF strings
       input_impedance:
-        default: "ON"
+        default: "1"
         getter:
           q: "SENS:VOLT:DC:IMP:AUTO?"
           r: "{}"
         setter:
           q: "SENS:VOLT:DC:IMP:AUTO {}"
-        specs:
-          type: str
-          valid: ["ON", "OFF"]
       
       # Analog filter - use ON/OFF strings
       analog_filter:
-        default: "OFF"
+        default: "0"
         getter:
           q: "SENS:VOLT:DC:LPAS?"
           r: "{}"
         setter:
           q: "SENS:VOLT:DC:LPAS {}"
-        specs:
-          type: str
-          valid: ["ON", "OFF"]
       
       # Digital filter - use ON/OFF strings
       digital_filter:
-        default: "OFF"
+        default: "0"
         getter:
           q: "SENS:VOLT:DC:DFIL?"
           r: "{}"
         setter:
           q: "SENS:VOLT:DC:DFIL {}"
-        specs:
-          type: str
-          valid: ["ON", "OFF"]
       
       # Auto-zero - use ON/OFF strings
       auto_zero:
-        default: "ON"
+        default: "1"
         getter:
           q: "SENS:VOLT:DC:AZER?"
           r: "{}"
         setter:
           q: "SENS:VOLT:DC:AZER {}"
-        specs:
-          type: str
-          valid: ["ON", "OFF"]
     
     dialogues:
       # IDN query
@@ -229,33 +207,33 @@ devices:
         r: "1.234567E-06"
 
       # Handle ON/OFF variations for boolean parameters
-      - q: "SENS:RANG:AUTO ON"
+      - q: "SENS:RANG:AUTO 1"
         r: ""
-      - q: "SENS:RANG:AUTO OFF"
+      - q: "SENS:RANG:AUTO 0"
         r: ""
-      - q: "SENS:AVER ON"
+      - q: "SENS:AVER 1"
         r: ""
-      - q: "SENS:AVER OFF"
+      - q: "SENS:AVER 0"
         r: ""
-      - q: "DISP:ENAB ON"
+      - q: "DISP:ENAB 1"
         r: ""
-      - q: "DISP:ENAB OFF"
+      - q: "DISP:ENAB 0"
         r: ""
-      - q: "SENS:VOLT:DC:IMP:AUTO ON"
+      - q: "SENS:VOLT:DC:IMP:AUTO 1"
         r: ""
-      - q: "SENS:VOLT:DC:IMP:AUTO OFF"
+      - q: "SENS:VOLT:DC:IMP:AUTO 0"
         r: ""
-      - q: "SENS:VOLT:DC:LPAS ON"
+      - q: "SENS:VOLT:DC:LPAS 1"
         r: ""
-      - q: "SENS:VOLT:DC:LPAS OFF"
+      - q: "SENS:VOLT:DC:LPAS 0"
         r: ""
-      - q: "SENS:VOLT:DC:DFIL ON"
+      - q: "SENS:VOLT:DC:DFIL 1"
         r: ""
-      - q: "SENS:VOLT:DC:DFIL OFF"
+      - q: "SENS:VOLT:DC:DFIL 0"
         r: ""
-      - q: "SENS:VOLT:DC:AZER ON"
+      - q: "SENS:VOLT:DC:AZER 1"
         r: ""
-      - q: "SENS:VOLT:DC:AZER OFF"
+      - q: "SENS:VOLT:DC:AZER 0"
         r: ""
 
       # Trigger commands
