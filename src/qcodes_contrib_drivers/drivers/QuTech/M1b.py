@@ -168,16 +168,6 @@ class M1b(Instrument):
         )
         """Parameter muted"""
 
-        self.invert: ManualParameter = self.add_parameter(
-            "invert",
-            parameter_class=ManualParameter,
-            initial_value=False,
-            label="Inverted output",
-            vals=Bool(),
-            docstring="Whether the output is inverted",
-        )
-        """Parameter invert"""
-
         # Derived parameters
         self.total_gain: Parameter = self.add_parameter(
             "total_gain",
