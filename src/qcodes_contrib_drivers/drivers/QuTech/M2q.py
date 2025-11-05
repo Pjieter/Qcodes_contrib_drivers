@@ -88,6 +88,8 @@ class M2q(Instrument):
     the user to ensure that values set here are in accordance with the values
     set on the physical instrument.
 
+    Note: This amplifier is the successor of the M2b amplifier and still in development. The documentation link below does not yet exist.
+
     Documentation: https://qtwork.tudelft.nl/~schouten/ivvi/doc-mod/docm2q.htm
 
     Args:
