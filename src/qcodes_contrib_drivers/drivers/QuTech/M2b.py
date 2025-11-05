@@ -68,7 +68,7 @@ class VoltageParameter(MultiParameter):
         assert isinstance(self.instrument, M2b)
         voltage_raw = self._measured_param.get()
 
-        # Calculate voltage from voltage and total gain
+        # Calculate voltage from voltage_raw and total gain
         total_gain = self.instrument.total_gain()
         voltage = voltage_raw / total_gain
         value = (voltage_raw, voltage)
@@ -125,7 +125,7 @@ class M2b(Instrument):
             initial_value="ac",
             label="DC/AC mode",
             vals=Enum("dc", "ac"),
-            docstring="Parameter dc_ac_mode — selects DC or AC coupling mode",
+            docstring="Selects DC or AC coupling mode",
         )
         """Parameter dc_ac_mode"""
 
@@ -135,16 +135,13 @@ class M2b(Instrument):
             label="Total gain",
             unit="V/V",
             get_cmd=self._get_total_gain,
-            docstring="Total gain",
+            docstring="Total voltage gain computed from base gain setting",
         )
         """Parameter total_gain"""
 
     def _get_total_gain(self) -> float:
         """
-        Calculate total voltage gain (V/V).
-
-        Note: Currently returns only the base gain from the gain mapping.
-        Postgain is not implemented.
+        Calculate total voltage gain (V/V). This method is mainly for consistency between drivers.
 
         Returns:
             Total gain in V/V.
