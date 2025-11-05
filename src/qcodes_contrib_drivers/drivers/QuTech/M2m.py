@@ -39,6 +39,14 @@ class VoltageParameter(MultiParameter):
         name: str = "voltage",
     ) -> None:
 
+        """
+        Wrap a measured voltage parameter to expose both the raw reading and the amplifier-corrected voltage as a two-field MultiParameter.
+        
+        Parameters:
+            measured_param (Parameter): A gettable parameter that provides the raw voltage reading from the amplifier output.
+            voltage_amplifier_instrument (M2m): The M2m virtual amplifier instrument whose total gain will be used to compute the corrected voltage.
+            name (str): Public name for the corrected voltage sub-parameter; the raw sub-parameter name is derived from `measured_param.name` and suffixed with `_raw`.
+        """
         parameter_name = measured_param.name
 
         super().__init__(
@@ -60,11 +68,13 @@ class VoltageParameter(MultiParameter):
 
     def get_raw(self) -> tuple[ParamRawDataType, ...]:
         """
-        Get raw values from the M2m preamplifier.
-
+        Return the raw measured voltage and the calculated output voltage corrected by the instrument gain.
+        
         Returns:
-            Tuple of (voltage_raw, voltage) where voltage is calculated
-            from voltage_raw using the total gain.
+            A tuple (voltage_raw, voltage) where `voltage_raw` is the value read from the wrapped measured parameter and `voltage` is `voltage_raw` divided by the instrument's total gain.
+        
+        Raises:
+            TypeError: If `self.instrument` is not an instance of M2m.
         """
         if not isinstance(self.instrument, M2m):
             raise TypeError(f"Expected M2m instrument, got {type(self.instrument)}")
@@ -97,6 +107,15 @@ class M2m(Instrument):
     """
 
     def __init__(self, name: str, **kwargs: "Unpack[InstrumentBaseKWArgs]") -> None:
+        """
+        Initialize the M2m virtual instrument and register its configuration and derived parameters.
+        
+        This constructor registers the manual configuration parameters `slot` (module slot, "Ma" or "Mb"), `gain` (amplifier gain setting: "1", "10", "100", "1k", "10k"), and `dc_ac_mode` (coupling mode: "dc", "ac", "hpf"), and it adds the derived read-only parameter `total_gain` that reports the computed voltage gain.
+         
+        Parameters:
+            name: Instrument name used by the base Instrument class.
+            **kwargs: Additional keyword arguments forwarded to the base Instrument constructor.
+        """
         super().__init__(name, **kwargs)
 
         self.slot: ManualParameter = self.add_parameter(
@@ -142,10 +161,12 @@ class M2m(Instrument):
 
     def _get_total_gain(self) -> float:
         """
-        Calculate total voltage gain (V/V). This method is mainly for consistency between drivers.
-
+        Compute the total voltage gain (V/V) based on the instrument's current `gain` setting.
+        
+        The returned value corresponds to the numeric V/V factor for the instrument's `gain` parameter (supported settings: "1", "10", "100", "1k", "10k").
+        
         Returns:
-            Total gain in V/V.
+            total_gain (float): Total gain in volts per volt (V/V).
         """
         # Gain mapping in V/V
         gain_map = {"1": 1, "10": 10, "100": 100, "1k": 1e3, "10k": 1e4}
@@ -156,10 +177,10 @@ class M2m(Instrument):
 
     def get_idn(self) -> dict[str, str | None]:
         """
-        Return the identification of the instrument.
-
-        Returns:
-            Dictionary with vendor, model, serial, and firmware information.
+        Provide identification metadata for the instrument.
+        
+        @returns
+            dict: Mapping with keys 'vendor', 'model', 'serial', and 'firmware'. The 'serial' and 'firmware' values may be None.
         """
         vendor = "QuTech"
         model = "M2m"
