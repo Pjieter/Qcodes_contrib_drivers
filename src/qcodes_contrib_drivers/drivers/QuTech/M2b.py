@@ -66,12 +66,12 @@ class VoltageParameter(MultiParameter):
             from voltage using the total gain.
         """
         assert isinstance(self.instrument, M2b)
-        voltage = self._measured_param.get()
+        voltage_raw = self._measured_param.get()
 
         # Calculate voltage from voltage and total gain
         total_gain = self.instrument.total_gain()
-        voltage = voltage / total_gain
-        value = (voltage, voltage)
+        voltage = voltage_raw / total_gain
+        value = (voltage_raw, voltage)
         return value
 
 
@@ -133,7 +133,7 @@ class M2b(Instrument):
         self.total_gain: Parameter = self.add_parameter(
             "total_gain",
             label="Total gain",
-            unit="V/A",
+            unit="V/V",
             get_cmd=self._get_total_gain,
             docstring="Total gain",
         )
@@ -144,9 +144,9 @@ class M2b(Instrument):
         Calculate total transimpedance gain including postgain.
 
         Returns:
-            Total gain in V/A.
+            Total gain in V/V.
         """
-        # Gain mapping in V/A
+        # Gain mapping in V/V
         gain_map = {"100": 100, "1k": 1e3, "10k": 1e4}
 
         base_gain = gain_map[self.gain()]
