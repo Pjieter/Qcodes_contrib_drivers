@@ -37,7 +37,7 @@ class VoltageParameter(MultiParameter):
         measured_param: Parameter,
         voltage_amplifier_instrument: "M2q",
         name: str = "voltage",
-    ):
+    ) -> None:
         parameter_name = measured_param.name
 
         super().__init__(
@@ -65,7 +65,10 @@ class VoltageParameter(MultiParameter):
             Tuple of (voltage_raw, voltage) where voltage is calculated
             from voltage_raw using the total gain.
         """
-        assert isinstance(self.instrument, M2q)
+        if not isinstance(self.instrument, M2q):
+            raise TypeError(
+                f"Expected instrument to be M2q, got {type(self.instrument).__name__}"
+            )
         voltage_raw = self._measured_param.get()
 
         # Calculate voltage from voltage_raw and total gain
@@ -85,19 +88,15 @@ class M2q(Instrument):
     designed for use in the IVVI rack system.
 
     Note that, as this is a purely virtual driver, it is the responsibility of
-    the user to ensure that values set here are in accordance with the values
-    set on the physical instrument.
-
-    Note: This amplifier is the successor of the M2b amplifier and still in development. The documentation link below does not yet exist.
-
-    Documentation: https://qtwork.tudelft.nl/~schouten/ivvi/doc-mod/docm2q.htm
+    Note: This amplifier is the successor of the M2b amplifier and is still in development.
+    Documentation will be available at: https://qtwork.tudelft.nl/~schouten/ivvi/doc-mod/docm2q.htm
 
     Args:
         name: Name of the instrument instance.
         **kwargs: Forwarded to base class.
     """
 
-    def __init__(self, name: str, **kwargs: "Unpack[InstrumentBaseKWArgs]"):
+    def __init__(self, name: str, **kwargs: "Unpack[InstrumentBaseKWArgs]") -> None:
         super().__init__(name, **kwargs)
 
         self.slot: ManualParameter = self.add_parameter(
