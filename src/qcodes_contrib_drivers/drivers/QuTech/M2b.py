@@ -28,7 +28,7 @@ class VoltageParameter(MultiParameter):
             voltage read from the M2b output.
         voltage_amplifier_instrument: An M2b instance where you manually
             maintain the present settings of the real M2b module.
-        name: The name of the voltage output. Default 'curr'.
+        name: The name of the voltage output. Default 'voltage'.
             Also used as the name of the whole parameter.
     """
 
@@ -125,9 +125,9 @@ class M2b(Instrument):
             initial_value="ac",
             label="DC/AC mode",
             vals=Enum("dc", "ac"),
-            docstring="Input resistance mode (function of V/A setting)",
+            docstring="Parameter dc_ac_mode — selects DC or AC coupling mode",
         )
-        """Parameter input_resistance_setting"""
+        """Parameter dc_ac_mode"""
 
         # Derived parameters
         self.total_gain: Parameter = self.add_parameter(
@@ -141,7 +141,10 @@ class M2b(Instrument):
 
     def _get_total_gain(self) -> float:
         """
-        Calculate total transimpedance gain including postgain.
+        Calculate total voltage gain (V/V).
+
+        Note: Currently returns only the base gain from the gain mapping.
+        Postgain is not implemented.
 
         Returns:
             Total gain in V/V.
