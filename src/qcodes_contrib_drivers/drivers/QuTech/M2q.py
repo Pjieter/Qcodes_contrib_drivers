@@ -88,6 +88,9 @@ class M2q(Instrument):
     designed for use in the IVVI rack system.
 
     Note that, as this is a purely virtual driver, it is the responsibility of
+    the user to ensure that values set here are in accordance with the values
+    set on the physical instrument.
+
     Note: This amplifier is the successor of the M2b amplifier and is still in development.
     Documentation will be available at: https://qtwork.tudelft.nl/~schouten/ivvi/doc-mod/docm2q.htm
 
