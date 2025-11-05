@@ -63,7 +63,7 @@ class VoltageParameter(MultiParameter):
 
         Returns:
             Tuple of (voltage_raw, voltage) where voltage is calculated
-            from voltage using the total gain.
+            from voltage_raw using the total gain.
         """
         assert isinstance(self.instrument, M2b)
         voltage_raw = self._measured_param.get()
