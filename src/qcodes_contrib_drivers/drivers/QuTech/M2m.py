@@ -37,7 +37,8 @@ class VoltageParameter(MultiParameter):
         measured_param: Parameter,
         voltage_amplifier_instrument: "M2m",
         name: str = "voltage",
-    ):
+    ) -> None:
+
         parameter_name = measured_param.name
 
         super().__init__(
@@ -65,7 +66,8 @@ class VoltageParameter(MultiParameter):
             Tuple of (voltage_raw, voltage) where voltage is calculated
             from voltage_raw using the total gain.
         """
-        assert isinstance(self.instrument, M2m)
+        if not isinstance(self.instrument, M2m):
+            raise TypeError(f"Expected M2m instrument, got {type(self.instrument)}")
         voltage_raw = self._measured_param.get()
 
         # Calculate voltage from voltage_raw and total gain
@@ -94,7 +96,7 @@ class M2m(Instrument):
         **kwargs: Forwarded to base class.
     """
 
-    def __init__(self, name: str, **kwargs: "Unpack[InstrumentBaseKWArgs]"):
+    def __init__(self, name: str, **kwargs: "Unpack[InstrumentBaseKWArgs]") -> None:
         super().__init__(name, **kwargs)
 
         self.slot: ManualParameter = self.add_parameter(
