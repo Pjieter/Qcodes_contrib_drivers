@@ -105,6 +105,16 @@ class S4c(Instrument):
     ) -> None:
         super().__init__(name, **kwargs)
 
+        self.slot: ManualParameter = self.add_parameter(
+            "slot",
+            parameter_class=ManualParameter,
+            initial_value="Sa",
+            label="Module slot",
+            vals=Enum("Sa", "Sb", "Sc", "Sd"),
+            docstring="Physical slot of the S4c module. It depends on the summing module configuration to which slot Iso-in 1 (top) and Iso-in 2 (bottom) are connected.",
+        )
+        """Parameter slot"""
+
         self.source_mode: ManualParameter = self.add_parameter(
             "source_mode",
             parameter_class=ManualParameter,
@@ -152,7 +162,7 @@ class S4c(Instrument):
             unit="",
             initial_value=False,
             vals=Enum(False, True),
-            docstring="Sets if the x0.01 jumper is installed (True) or not installed (False)",
+            docstring="Sets if the x0.01 jumper is installed (True) or not installed (False)",  # TODO implement automatically changing actual output depending on this setting
         )
 
     def _get_total_output(self) -> float:
