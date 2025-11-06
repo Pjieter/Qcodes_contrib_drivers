@@ -59,7 +59,7 @@ class SourceParameter(Parameter):
             Tuple of (raw_source_value, scaled_source_value)
         """
         if not isinstance(self.instrument, S4c):
-            raise RuntimeError("SourceParameter has no associated S4c instrument")
+            raise TypeError("SourceParameter has no associated S4c instrument")
         raw_source = self._source_param.get()
         total_output = self.instrument._get_total_output()
         if total_output == 0:
@@ -72,7 +72,7 @@ class SourceParameter(Parameter):
 
     def set_raw(self, value: ParamRawDataType) -> None:
         if not isinstance(self.instrument, S4c):
-            raise RuntimeError("SourceParameter has no associated S4c instrument")
+            raise TypeError("SourceParameter has no associated S4c instrument")
         total_output = self.instrument._get_total_output()
         if total_output == 0:
             raise ValueError(
