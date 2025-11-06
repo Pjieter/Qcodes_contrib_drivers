@@ -22,9 +22,9 @@ class SourceParameter(Parameter):
 
     def __init__(
         self,
+        name: str,
         source_param: Parameter,
         source_instrument: "S4c",
-        name: Optional[str] = None,
     ) -> None:
         if not isinstance(source_instrument, S4c):
             raise TypeError(
@@ -59,9 +59,11 @@ class SourceParameter(Parameter):
         Returns:
             Tuple of (raw_source_value, scaled_source_value)
         """
+        if self.instrument is None:
+            raise RuntimeError("Instrument is not set for this parameter.")
         raw_source = self._source_param.get()
         total_output = self.instrument._get_total_output()
-        if total_output is None:
+        if total_output == 0:
             raise ValueError(
                 f"Cannot get value: S4c total output is invalid (range: {self.instrument.range.get()})"
             )
@@ -70,8 +72,10 @@ class SourceParameter(Parameter):
         return (raw_source, source_value)
 
     def set_raw(self, value: ParamRawDataType) -> None:
+        if self.instrument is None:
+            raise RuntimeError("Instrument is not set for this parameter.")
         total_output = self.instrument._get_total_output()
-        if total_output is None:
+        if total_output == 0:
             raise ValueError(
                 f"Cannot set value: S4c total output is invalid (range: {self.instrument.range.get()})"
             )
@@ -185,4 +189,4 @@ class S4c(Instrument):
             "10m": 10e-3,
             "20m": 20e-3,
         }
-        return range_map.get(self.range.get())
+        return range_map.get(self.range.get(), 0.0)
