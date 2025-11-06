@@ -5,7 +5,6 @@ from qcodes.parameters import (
     ManualParameter,
     Parameter,
     ParamRawDataType,
-    MultiParameter,
 )
 from qcodes.validators import Enum
 
@@ -59,8 +58,8 @@ class SourceParameter(Parameter):
         Returns:
             Tuple of (raw_source_value, scaled_source_value)
         """
-        if self.instrument is None:
-            raise RuntimeError("Instrument is not set for this parameter.")
+        if not isinstance(self.instrument, S4c):
+            raise RuntimeError("SourceParameter has no associated S4c instrument")
         raw_source = self._source_param.get()
         total_output = self.instrument._get_total_output()
         if total_output == 0:
@@ -72,8 +71,8 @@ class SourceParameter(Parameter):
         return (raw_source, source_value)
 
     def set_raw(self, value: ParamRawDataType) -> None:
-        if self.instrument is None:
-            raise RuntimeError("Instrument is not set for this parameter.")
+        if not isinstance(self.instrument, S4c):
+            raise RuntimeError("SourceParameter has no associated S4c instrument")
         total_output = self.instrument._get_total_output()
         if total_output == 0:
             raise ValueError(
@@ -159,6 +158,7 @@ class S4c(Instrument):
             docstring="Sets the output mode of the S4c module.",
         )
 
+        # TODO: implement automatically changing actual output depending on this setting. This requires the summing module and interconnecting parameters to be built first.
         self.x001_jumper: ManualParameter = self.add_parameter(
             "x001_jumper",
             parameter_class=ManualParameter,
@@ -166,7 +166,7 @@ class S4c(Instrument):
             unit="",
             initial_value=False,
             vals=Enum(False, True),
-            docstring="Sets if the x0.01 jumper is installed (True) or not installed (False)",  # TODO implement automatically changing actual output depending on this setting
+            docstring="Sets if the x0.01 jumper is installed (True) or not installed (False)",
         )
 
     def _get_total_output(self) -> float:
