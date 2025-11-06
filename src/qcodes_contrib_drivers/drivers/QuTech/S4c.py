@@ -53,21 +53,22 @@ class SourceParameter(Parameter):
         source_param.is_controlled_by.add(self)
 
     def get_raw(self) -> tuple[ParamRawDataType, ...]:
-        if not isinstance(self.instrument, S4c):
-            raise TypeError(
-                f"Expected instrument to be S4c, got {type(self.instrument).__name__}"
-            )
+        """
+        Get the raw and scaled source values.
+
+        Returns:
+            Tuple of (raw_source_value, scaled_source_value)
+        """
         raw_source = self._source_param.get()
         source_value = raw_source * self.instrument._get_total_output()
 
         return (raw_source, source_value)
 
     def set_raw(self, value: ParamRawDataType) -> None:
-        if not isinstance(self.instrument, S4c):
-            raise TypeError(
-                f"Expected instrument to be S4c, got {type(self.instrument).__name__}"
-            )
-        raw_value = value / self.instrument._get_total_output()
+        total_output = self.instrument._get_total_output()
+        if total_output == 0.0:
+            raise ValueError("Cannot set value: S4c total output is zero")
+        raw_value = value / total_output
         self._source_param(raw_value)
 
 
@@ -88,9 +89,6 @@ class S4c(Instrument):
     Args:
         name: Name of the instrument instance.
         **kwargs: Forwarded to base class.
-
-    Args:
-        Instrument (_type_): _description_
     """
 
     def __init__(
@@ -146,7 +144,7 @@ class S4c(Instrument):
             label="x0.01 jumper",
             unit="",
             initial_value=False,
-            vals=Enum(True, False),
+            vals=Enum(False, True),
             docstring="Sets if the x0.01 jumper is installed (True) or not installed (False)",
         )
 
@@ -170,4 +168,4 @@ class S4c(Instrument):
             "10m": 10e-3,
             "20m": 20e-3,
         }
-        return range_map.get(self.range.get(), 0.0)
+        return range_map.get(self.range.get())
