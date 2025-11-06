@@ -60,14 +60,21 @@ class SourceParameter(Parameter):
             Tuple of (raw_source_value, scaled_source_value)
         """
         raw_source = self._source_param.get()
-        source_value = raw_source * self.instrument._get_total_output()
+        total_output = self.instrument._get_total_output()
+        if total_output is None:
+            raise ValueError(
+                f"Cannot get value: S4c total output is invalid (range: {self.instrument.range.get()})"
+            )
+        source_value = raw_source * total_output
 
         return (raw_source, source_value)
 
     def set_raw(self, value: ParamRawDataType) -> None:
         total_output = self.instrument._get_total_output()
-        if total_output == 0.0:
-            raise ValueError("Cannot set value: S4c total output is zero")
+        if total_output is None:
+            raise ValueError(
+                f"Cannot set value: S4c total output is invalid (range: {self.instrument.range.get()})"
+            )
         raw_value = value / total_output
         self._source_param(raw_value)
 
