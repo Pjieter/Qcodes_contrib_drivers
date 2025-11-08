@@ -23,19 +23,22 @@ class ADRRampValidator(Validator[numbertypes]):
     Requires a number of type int, float, numpy.integer or numpy.floating.
     Depends on the ramp limits set in the ADR controller.
 
-    Raises:
-        TypeError: If instrument.controller used with this validator is not ADRControl.
+    Args:
+        valid_values: The valid ramp rate values list.
+        temperature_setpoint: The current temperature setpoint.
 
     """
 
     is_numeric = True
 
-    def __init__(self) -> None:
-        if not isinstance(self.instrument.controller, ADRControl):
-            raise TypeError("ADRRampValidator can only be used with ADRControl.")
-        super().__init__(self)
-        # Get the ramp limits from the instrument: [[temp_min, temp_max, ramp_max], ...]
-        self._valid_values = self.instrument.controller.query("ramp_limits")
+    def __init__(
+        self,
+        valid_values: list[tuple[float, float, float]],
+        temperature_setpoint: float,
+    ) -> None:
+        """Initializes the ADRRampValidator."""
+        self._valid_values = valid_values
+        self._temperature_setpoint = temperature_setpoint
 
     def validate(self, value: numbertypes, context: str = "") -> None:
         """
@@ -56,14 +59,13 @@ class ADRRampValidator(Validator[numbertypes]):
 
         if not isinstance(value, (int, float, np.integer, np.floating)):
             raise TypeError(f"{value!r} is not an int or float; {context}")
-        setpoint = self.instrument.temperature_setpoint
-
+        setpoint = self._temperature_setpoint
         for temp_min, temp_max, ramp_max in self._valid_values:
             if temp_min <= setpoint < temp_max:
                 if not (0 <= value <= ramp_max):
                     raise ValueError(
                         f"Ramp rate {value} K/min is out of bounds for setpoint {setpoint} K. "
-                        f"Valid range is 0 to {ramp_max} K/min."
+                        f"Valid range is 0 to {ramp_max} K/min.; {context}"
                     )
 
 
@@ -175,7 +177,10 @@ class ADRChannel(InstrumentChannel):
             unit="K/min",
             get_cmd=self.controller.ramp,
             set_cmd=self.controller.ramp,
-            vals=ADRRampValidator(),
+            vals=ADRRampValidator(
+                valid_values=self.controller.query_value("ramp_limits"),
+                temperature_setpoint=self.temperature_setpoint(),
+            ),
         )
         """Parameter ramp"""
 
