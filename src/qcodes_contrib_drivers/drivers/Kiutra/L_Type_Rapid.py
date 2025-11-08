@@ -34,11 +34,11 @@ class ADRRampValidator(Validator[numbertypes]):
     def __init__(
         self,
         valid_values: list[tuple[float, float, float]],
-        temperature_setpoint: float,
+        temperature_setpoint_getter: callable[[], float],
     ) -> None:
         """Initializes the ADRRampValidator."""
         self._valid_values = valid_values
-        self._temperature_setpoint = temperature_setpoint
+        self._temperature_setpoint_getter = temperature_setpoint_getter
 
     def validate(self, value: numbertypes, context: str = "") -> None:
         """
@@ -179,7 +179,7 @@ class ADRChannel(InstrumentChannel):
             set_cmd=self.controller.ramp,
             vals=ADRRampValidator(
                 valid_values=self.controller.query_value("ramp_limits"),
-                temperature_setpoint=self.temperature_setpoint(),
+                temperature_setpoint_getter=self.temperature_setpoint,
             ),
         )
         """Parameter ramp"""
