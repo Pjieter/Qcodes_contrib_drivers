@@ -1,16 +1,16 @@
-from kiutra_api.controller_interfaces import (
-    TemperatureControl,
-    MagnetControl,
-    ADRControl,
-    HeaterControl,
-)
-from kiutra_api.api_client import KiutraClient
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Callable, Optional
 
 import numpy as np
 from qcodes.instrument import Instrument, InstrumentBaseKWArgs, InstrumentChannel
 from qcodes.parameters import ManualParameter, Parameter
 from qcodes.validators import Enum, Numbers, Validator
+from kiutra_api.controller_interfaces import (  # type: ignore
+    TemperatureControl,
+    MagnetControl,
+    ADRControl,
+    HeaterControl,
+)
+from kiutra_api.api_client import KiutraClient  # type: ignore
 
 if TYPE_CHECKING:
     from typing_extensions import Unpack
@@ -33,11 +33,11 @@ class ADRRampValidator(Validator[numbertypes]):
 
     def __init__(
         self,
-        valid_values: list[tuple[float, float, float]],
-        temperature_setpoint_getter: callable[[], float],
+        valid_values: list[tuple[numbertypes, numbertypes, numbertypes]],
+        temperature_setpoint_getter: Callable[[], float],
     ) -> None:
         """Initializes the ADRRampValidator."""
-        self._valid_values = valid_values
+        self._ramp_limits = valid_values
         self._temperature_setpoint_getter = temperature_setpoint_getter
 
     def validate(self, value: numbertypes, context: str = "") -> None:
@@ -59,14 +59,17 @@ class ADRRampValidator(Validator[numbertypes]):
 
         if not isinstance(value, (int, float, np.integer, np.floating)):
             raise TypeError(f"{value!r} is not an int or float; {context}")
-        setpoint = self._temperature_setpoint
-        for temp_min, temp_max, ramp_max in self._valid_values:
+        setpoint = self._temperature_setpoint_getter()
+        for temp_min, temp_max, ramp_max in self._ramp_limits:
             if temp_min <= setpoint < temp_max:
+                self._valid_values = (0, ramp_max)
                 if not (0 <= value <= ramp_max):
                     raise ValueError(
                         f"Ramp rate {value} K/min is out of bounds for setpoint {setpoint} K. "
                         f"Valid range is 0 to {ramp_max} K/min.; {context}"
                     )
+                return
+        raise ValueError(f"No valid ramp rate found for setpoint {setpoint} K.")
 
 
 class TemperatureChannel(InstrumentChannel):
