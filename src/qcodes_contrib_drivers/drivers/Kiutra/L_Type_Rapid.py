@@ -38,11 +38,15 @@ class ADRRampValidator(Validator[numbertypes]):
     def __init__(
         self,
         ramp_limits: list[tuple[numbertypes, numbertypes, numbertypes]],
-        temperature_setpoint_getter: Parameter,
+        temperature_setpoint: Parameter,
     ) -> None:
         """Initializes the ADRRampValidator."""
         self._ramp_limits = ramp_limits
-        self._temperature_setpoint_getter = temperature_setpoint_getter
+        self._temperature_setpoint = temperature_setpoint
+        # Make sure the temperature_setpoint has vals of type Numbers
+        if not isinstance(self._temperature_setpoint.vals, Numbers):
+            raise TypeError("Temperature_setpoint must have vals of type Numbers")
+        self.temperature_validator = self._temperature_setpoint.vals
         # Initialize to avoid attribute error, set to proper values in validate.
         self._valid_values = (0, 0)
         self._maximum_ramp = 2.0  # The absolute maximum ramp rate for ADRs
@@ -66,7 +70,7 @@ class ADRRampValidator(Validator[numbertypes]):
 
         if not isinstance(value, (int, float, np.integer, np.floating)):
             raise TypeError(f"{value!r} is not an int or float; {context}")
-        setpoint = self._temperature_setpoint_getter()
+        setpoint = self._temperature_setpoint()
         for temp_min, temp_max, ramp_max in self._ramp_limits:
             if temp_min <= setpoint < temp_max:
                 self._valid_values = (0, ramp_max)
@@ -76,7 +80,7 @@ class ADRRampValidator(Validator[numbertypes]):
                         f"Valid range is 0 to {ramp_max} K/min.; {context}"
                     )
                 return
-        if temp_max <= setpoint <= self._temperature_setpoint_getter.vals.max_value:
+        if temp_max <= setpoint <= self.temperature_validator.max_value:
             self._valid_values = (0, self._maximum_ramp)
             if not (0 <= value <= self._maximum_ramp):
                 raise ValueError(
@@ -227,7 +231,7 @@ class ADRChannel(InstrumentChannel):
             set_cmd=self.controller.ramp,
             vals=ADRRampValidator(
                 ramp_limits=self.controller.query_value("ramp_limits"),
-                temperature_setpoint_getter=self.temperature_setpoint,
+                temperature_setpoint=self.temperature_setpoint,
             ),
         )
         """Parameter ramp"""
