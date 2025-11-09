@@ -39,15 +39,14 @@ class ADRRampValidator(Validator[numbertypes]):
     def __init__(
         self,
         ramp_limits: list[tuple[numbertypes, numbertypes, numbertypes]],
-        temperature_setpoint_getter: Callable[[], float],
-        max_temperature: float,
+        temperature_setpoint_getter: Parameter,
     ) -> None:
         """Initializes the ADRRampValidator."""
         self._ramp_limits = ramp_limits
         self._temperature_setpoint_getter = temperature_setpoint_getter
-        self._max_temperature = max_temperature
         # Initialize to avoid attribute error, set to proper values in validate.
         self._valid_values = (0, 0)
+        self._maximum_ramp = 2.0  # The absolute maximum ramp rate for ADRs
 
     def validate(self, value: numbertypes, context: str = "") -> None:
         """
@@ -70,11 +69,7 @@ class ADRRampValidator(Validator[numbertypes]):
             raise TypeError(f"{value!r} is not an int or float; {context}")
         setpoint = self._temperature_setpoint_getter()
         for temp_min, temp_max, ramp_max in self._ramp_limits:
-            # Make upper bound inclusive for the final interval
-            is_in_range = (temp_min <= setpoint < temp_max) or (
-                setpoint == temp_max == self._max_temperature
-            )
-            if is_in_range:
+            if temp_min <= setpoint < temp_max:
                 self._valid_values = (0, ramp_max)
                 if not (0 <= value <= ramp_max):
                     raise ValueError(
@@ -82,7 +77,14 @@ class ADRRampValidator(Validator[numbertypes]):
                         f"Valid range is 0 to {ramp_max} K/min.; {context}"
                     )
                 return
-        raise ValueError(f"No valid ramp rate found for setpoint {setpoint} K.")
+        if temp_max <= setpoint <= self._temperature_setpoint_getter.vals.max_value:
+            self._valid_values = (0, self._maximum_ramp)
+            if not (0 <= value <= self._maximum_ramp):
+                raise ValueError(
+                    f"Ramp rate {value} K/min is out of bounds for setpoint {setpoint} K. "
+                    f"Valid range is 0 to {self._maximum_ramp} K/min.; {context}"
+                )
+            return
 
 
 class TemperatureChannel(InstrumentChannel):
@@ -227,7 +229,6 @@ class ADRChannel(InstrumentChannel):
             vals=ADRRampValidator(
                 ramp_limits=self.controller.query_value("ramp_limits"),
                 temperature_setpoint_getter=self.temperature_setpoint,
-                max_temperature=self.temperature_validator._max_value,
             ),
         )
         """Parameter ramp"""
