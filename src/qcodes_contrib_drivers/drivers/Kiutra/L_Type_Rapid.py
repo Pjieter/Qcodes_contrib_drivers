@@ -451,13 +451,12 @@ class MagnetChannel(InstrumentChannel):
             )
             return self.controller
         except Exception as e:
-            self.controller = None
             error_msg = (
                 f"Failed to connect to magnet controller at "
                 f"{self.parent._address}:{self.parent._port}. "
                 f"Original error: {e}"
             )
-            log.error(error_msg)
+            log.exception(error_msg)
             raise ConnectionError(error_msg) from e
 
 
