@@ -177,6 +177,15 @@ class ADRChannel(InstrumentChannel):
         )
         """Parameter temperature"""
 
+        self.temperature_setpoint: Parameter = self.add_parameter(
+            "temperature_setpoint",
+            label="ADR Temperature Setpoint",
+            unit="K",
+            get_cmd=self.controller.setpoint,
+            set_cmd=self.controller.setpoint,
+        )
+        """Parameter temperature_setpoint"""
+
         self.ramp: Parameter = self.add_parameter(
             "ramp",
             label="ADR Ramp Rate",
@@ -189,15 +198,6 @@ class ADRChannel(InstrumentChannel):
             ),
         )
         """Parameter ramp"""
-
-        self.temperature_setpoint: Parameter = self.add_parameter(
-            "temperature_setpoint",
-            label="ADR Temperature Setpoint",
-            unit="K",
-            get_cmd=self.controller.setpoint,
-            set_cmd=self.controller.setpoint,
-        )
-        """Parameter temperature_setpoint"""
 
         self.operation_mode: Parameter = self.add_parameter(
             "operation_mode",
