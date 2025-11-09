@@ -251,7 +251,7 @@ class ADRChannel(InstrumentChannel):
                 f"{self.parent._address}:{self.parent._port}. "
                 f"Original error: {e}"
             )
-            log.error(error_msg)
+            log.exception(error_msg)
             raise ConnectionError(error_msg) from e
 
     def _set_temperature(self, value: float) -> None:
