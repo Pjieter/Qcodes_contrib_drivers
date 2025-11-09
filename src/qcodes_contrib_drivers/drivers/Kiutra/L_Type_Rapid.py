@@ -84,6 +84,8 @@ class TemperatureChannel(InstrumentChannel):
         name: The name of the temperature channel.
     """
 
+    controller: TemperatureControl
+
     def __init__(
         self,
         parent: "LTypeRapid",
@@ -157,6 +159,8 @@ class ADRChannel(InstrumentChannel):
         parent: The parent instrument (LTypeRapid).
         name: The name of the ADR channel.
     """
+
+    controller: ADRControl
 
     def __init__(
         self,
@@ -250,6 +254,8 @@ class HeaterChannel(InstrumentChannel):
         name: The name of the heater channel.
     """
 
+    controller: HeaterControl
+
     def __init__(
         self,
         parent: "LTypeRapid",
@@ -326,6 +332,8 @@ class MagnetChannel(InstrumentChannel):
         parent: The parent instrument (LTypeRapid).
         name: The name of the magnet channel.
     """
+
+    controller: MagnetControl
 
     def __init__(
         self,
