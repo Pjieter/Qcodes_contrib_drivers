@@ -78,8 +78,9 @@ class ADRRampValidator(Validator[numbertypes]):
             )
         
         # Compute min and max temperature bounds from ramp_limits
-        min_temp = self._ramp_limits[0][0]
-        max_temp = self._ramp_limits[-1][1]
+        # The list may not be ordered, so find the actual min/max across all intervals
+        min_temp = min(interval[0] for interval in self._ramp_limits)
+        max_temp = max(interval[1] for interval in self._ramp_limits)
         
         setpoint = self._temperature_setpoint()
         
