@@ -29,7 +29,7 @@ class ADRRampValidator(Validator[numbertypes]):
 
     Args:
         ramp_limits: The ramp rate limits list.
-        temperature_setpoint: The current temperature setpoint.
+        temperature_setpoint_getter: The current temperature setpoint getter.
 
     """
 
@@ -38,13 +38,18 @@ class ADRRampValidator(Validator[numbertypes]):
     def __init__(
         self,
         ramp_limits: list[tuple[numbertypes, numbertypes, numbertypes]],
-        temperature_setpoint_getter: Callable[[], float],
+        temperature_setpoint: Parameter,
     ) -> None:
         """Initializes the ADRRampValidator."""
         self._ramp_limits = ramp_limits
-        self._temperature_setpoint_getter = temperature_setpoint_getter
+        self._temperature_setpoint = temperature_setpoint
+        # Make sure the temperature_setpoint has vals of type Numbers
+        if not isinstance(self._temperature_setpoint.vals, Numbers):
+            raise TypeError("Temperature_setpoint must have vals of type Numbers")
+        self.temperature_validator = self._temperature_setpoint.vals
         # Initialize to avoid attribute error, set to proper values in validate.
         self._valid_values = (0, 0)
+        self._maximum_ramp = 2.0  # The absolute maximum ramp rate for ADRs
 
     def validate(self, value: numbertypes, context: str = "") -> None:
         """
@@ -65,7 +70,7 @@ class ADRRampValidator(Validator[numbertypes]):
 
         if not isinstance(value, (int, float, np.integer, np.floating)):
             raise TypeError(f"{value!r} is not an int or float; {context}")
-        setpoint = self._temperature_setpoint_getter()
+        setpoint = self._temperature_setpoint()
         for temp_min, temp_max, ramp_max in self._ramp_limits:
             if temp_min <= setpoint < temp_max:
                 self._valid_values = (0, ramp_max)
@@ -75,7 +80,14 @@ class ADRRampValidator(Validator[numbertypes]):
                         f"Valid range is 0 to {ramp_max} K/min.; {context}"
                     )
                 return
-        raise ValueError(f"No valid ramp rate found for setpoint {setpoint} K.")
+        if temp_max <= setpoint <= self.temperature_validator.max_value:
+            self._valid_values = (0, self._maximum_ramp)
+            if not (0 <= value <= self._maximum_ramp):
+                raise ValueError(
+                    f"Ramp rate {value} K/min is out of bounds for setpoint {setpoint} K. "
+                    f"Valid range is 0 to {self._maximum_ramp} K/min.; {context}"
+                )
+            return
 
 
 class TemperatureChannel(InstrumentChannel):
@@ -97,6 +109,7 @@ class TemperatureChannel(InstrumentChannel):
         super().__init__(parent, name)
 
         self._connect_temperature_controller()
+        self.temperature_validator = Numbers(0.083, 300.0)
 
         self.temperature: Parameter = self.add_parameter(
             "temperature",
@@ -104,7 +117,7 @@ class TemperatureChannel(InstrumentChannel):
             unit="K",
             get_cmd=self.controller.kelvin,
             set_cmd=self._set_temperature,
-            vals=Numbers(0.083, 300.0),
+            vals=self.temperature_validator,
         )
         """Parameter temperature"""
 
@@ -114,6 +127,7 @@ class TemperatureChannel(InstrumentChannel):
             unit="K/min",
             get_cmd=self.controller.ramp,
             set_cmd=self.controller.ramp,
+            vals=Numbers(0, 5.0),
         )
         """Parameter ramp"""
 
@@ -123,6 +137,7 @@ class TemperatureChannel(InstrumentChannel):
             unit="K",
             get_cmd=self.controller.setpoint,
             set_cmd=self.controller.setpoint,
+            vals=self.temperature_validator,
         )
         """Parameter temperature_setpoint"""
 
@@ -132,7 +147,7 @@ class TemperatureChannel(InstrumentChannel):
 
         Returns:
             The KiutraClient instance for the temperature controller.
-            
+
         Raises:
             ConnectionError: If connection to the temperature controller fails.
         """
@@ -185,6 +200,7 @@ class ADRChannel(InstrumentChannel):
         super().__init__(parent, name)
 
         self._connect_adr_controller()
+        self.temperature_validator = Numbers(0.083, 8.0)
 
         self.temperature: Parameter = self.add_parameter(
             "temperature",
@@ -192,7 +208,7 @@ class ADRChannel(InstrumentChannel):
             unit="K",
             get_cmd=self.controller.kelvin,
             set_cmd=self._set_temperature,
-            vals=Numbers(0.083, 8.0),
+            vals=self.temperature_validator,
         )
         """Parameter temperature"""
 
@@ -202,6 +218,7 @@ class ADRChannel(InstrumentChannel):
             unit="K",
             get_cmd=self.controller.setpoint,
             set_cmd=self.controller.setpoint,
+            vals=self.temperature_validator,
         )
         """Parameter temperature_setpoint"""
 
@@ -213,7 +230,7 @@ class ADRChannel(InstrumentChannel):
             set_cmd=self.controller.ramp,
             vals=ADRRampValidator(
                 ramp_limits=self.controller.query_value("ramp_limits"),
-                temperature_setpoint_getter=self.temperature_setpoint,
+                temperature_setpoint=self.temperature_setpoint,
             ),
         )
         """Parameter ramp"""
@@ -221,6 +238,7 @@ class ADRChannel(InstrumentChannel):
         self.operation_mode: Parameter = self.add_parameter(
             "operation_mode",
             label="ADR Operation Mode",
+            initial_value="cadr",
             get_cmd=self.controller.operation_mode,
             set_cmd=self.controller.operation_mode,
             vals=Enum("cadr", "adr"),
@@ -234,7 +252,7 @@ class ADRChannel(InstrumentChannel):
 
         Returns:
             The KiutraClient instance for the ADR controller.
-            
+
         Raises:
             ConnectionError: If connection to the ADR controller fails.
         """
@@ -291,6 +309,7 @@ class HeaterChannel(InstrumentChannel):
         super().__init__(parent, name)
 
         self._connect_heater_controller()
+        self.temperature_validator = Numbers(0.083, 300.0)
 
         self.power: Parameter = self.add_parameter(
             "power",
@@ -306,6 +325,7 @@ class HeaterChannel(InstrumentChannel):
             unit="K",
             get_cmd=self.controller.setpoint,
             set_cmd=self.controller.setpoint,
+            vals=self.temperature_validator,
         )
         """Parameter temperature_setpoint"""
 
@@ -315,7 +335,7 @@ class HeaterChannel(InstrumentChannel):
             unit="K",
             get_cmd=self.controller.kelvin,
             set_cmd=self._set_temperature,
-            vals=Numbers(3.0, 300.0),
+            vals=self.temperature_validator,
         )
         """Parameter temperature"""
 
@@ -334,7 +354,7 @@ class HeaterChannel(InstrumentChannel):
 
         Returns:
             The KiutraClient instance for the heater controller.
-            
+
         Raises:
             ConnectionError: If connection to the heater controller fails.
         """
@@ -383,12 +403,15 @@ class MagnetChannel(InstrumentChannel):
         super().__init__(parent, name)
 
         self._connect_magnet_controller()
+        self.field_validator = Numbers(-5, 5)
 
         self.field: Parameter = self.add_parameter(
             "field",
             label="Magnetic Field",
+            unit="T",
             get_cmd=self.controller.field,
             set_cmd=False,
+            vals=self.field_validator,
         )
         """Parameter field"""
 
@@ -398,7 +421,7 @@ class MagnetChannel(InstrumentChannel):
             initial_value=0.0,
             label="Magnetic Field Setpoint",
             unit="T",
-            vals=Numbers(-5, 5),  # Please adjust the validator values as needed
+            vals=self.field_validator,
         )
         """Parameter field_setpoint"""
 
@@ -408,7 +431,7 @@ class MagnetChannel(InstrumentChannel):
             initial_value=0.0,
             label="Magnetic Field Ramp Rate",
             unit="T/min",
-            vals=Numbers(0, 0.5),  # Please adjust the validator values as needed
+            vals=Numbers(0, 0.5),
         )
         """Parameter field_rate"""
 
@@ -438,7 +461,7 @@ class MagnetChannel(InstrumentChannel):
 
         Returns:
             The KiutraClient instance for the magnet controller.
-            
+
         Raises:
             ConnectionError: If connection to the magnet controller fails.
         """
