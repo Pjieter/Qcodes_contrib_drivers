@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Optional
+from collections.abc import Callable
 
 import numpy as np
 from qcodes.instrument import Instrument, InstrumentBaseKWArgs, InstrumentChannel
@@ -24,7 +25,7 @@ class ADRRampValidator(Validator[numbertypes]):
     Depends on the ramp limits set in the ADR controller.
 
     Args:
-        valid_values: The valid ramp rate values list.
+        ramp_limits: The ramp rate limits list.
         temperature_setpoint: The current temperature setpoint.
 
     """
@@ -33,12 +34,13 @@ class ADRRampValidator(Validator[numbertypes]):
 
     def __init__(
         self,
-        valid_values: list[tuple[numbertypes, numbertypes, numbertypes]],
+        ramp_limits: list[tuple[numbertypes, numbertypes, numbertypes]],
         temperature_setpoint_getter: Callable[[], float],
     ) -> None:
         """Initializes the ADRRampValidator."""
-        self._ramp_limits = valid_values
+        self._ramp_limits = ramp_limits
         self._temperature_setpoint_getter = temperature_setpoint_getter
+        self._valid_values = (0, 0)
 
     def validate(self, value: numbertypes, context: str = "") -> None:
         """
@@ -181,7 +183,7 @@ class ADRChannel(InstrumentChannel):
             get_cmd=self.controller.ramp,
             set_cmd=self.controller.ramp,
             vals=ADRRampValidator(
-                valid_values=self.controller.query_value("ramp_limits"),
+                ramp_limits=self.controller.query_value("ramp_limits"),
                 temperature_setpoint_getter=self.temperature_setpoint,
             ),
         )
