@@ -29,7 +29,8 @@ class ADRRampValidator(Validator[numbertypes]):
 
     Args:
         ramp_limits: The ramp rate limits list.
-        temperature_setpoint: The current temperature setpoint.
+        temperature_setpoint_getter: The current temperature setpoint getter.
+        max_temperature: The maximum temperature the controller can reach.
 
     """
 
@@ -39,10 +40,12 @@ class ADRRampValidator(Validator[numbertypes]):
         self,
         ramp_limits: list[tuple[numbertypes, numbertypes, numbertypes]],
         temperature_setpoint_getter: Callable[[], float],
+        max_temperature: float,
     ) -> None:
         """Initializes the ADRRampValidator."""
         self._ramp_limits = ramp_limits
         self._temperature_setpoint_getter = temperature_setpoint_getter
+        self._max_temperature = max_temperature
         # Initialize to avoid attribute error, set to proper values in validate.
         self._valid_values = (0, 0)
 
@@ -66,11 +69,10 @@ class ADRRampValidator(Validator[numbertypes]):
         if not isinstance(value, (int, float, np.integer, np.floating)):
             raise TypeError(f"{value!r} is not an int or float; {context}")
         setpoint = self._temperature_setpoint_getter()
-        last_temp_max = self._ramp_limits[-1][1]
         for temp_min, temp_max, ramp_max in self._ramp_limits:
             # Make upper bound inclusive for the final interval
             is_in_range = (temp_min <= setpoint < temp_max) or (
-                setpoint == temp_max == last_temp_max
+                setpoint == temp_max == self._max_temperature
             )
             if is_in_range:
                 self._valid_values = (0, ramp_max)
@@ -225,6 +227,7 @@ class ADRChannel(InstrumentChannel):
             vals=ADRRampValidator(
                 ramp_limits=self.controller.query_value("ramp_limits"),
                 temperature_setpoint_getter=self.temperature_setpoint,
+                max_temperature=self.temperature_validator._max_value,
             ),
         )
         """Parameter ramp"""
