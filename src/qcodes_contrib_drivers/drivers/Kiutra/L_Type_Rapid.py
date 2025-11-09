@@ -30,7 +30,6 @@ class ADRRampValidator(Validator[numbertypes]):
     Args:
         ramp_limits: The ramp rate limits list.
         temperature_setpoint_getter: The current temperature setpoint getter.
-        max_temperature: The maximum temperature the controller can reach.
 
     """
 
