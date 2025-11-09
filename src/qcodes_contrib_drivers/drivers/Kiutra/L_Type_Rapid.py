@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 from collections.abc import Callable
+import logging
 
 import numpy as np
 from qcodes.instrument import Instrument, InstrumentBaseKWArgs, InstrumentChannel
@@ -12,6 +13,8 @@ from kiutra_api.controller_interfaces import (  # type: ignore
     HeaterControl,
 )
 from kiutra_api.api_client import KiutraClient  # type: ignore
+
+log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from typing_extensions import Unpack
@@ -127,11 +130,24 @@ class TemperatureChannel(InstrumentChannel):
 
         Returns:
             The KiutraClient instance for the temperature controller.
+            
+        Raises:
+            ConnectionError: If connection to the temperature controller fails.
         """
-        self.controller = TemperatureControl(
-            "temperature_control", self.parent._address, self.parent._port
-        )
-        return self.controller
+        try:
+            self.controller = TemperatureControl(
+                "temperature_control", self.parent._address, self.parent._port
+            )
+            return self.controller
+        except Exception as e:
+            self.controller = None
+            error_msg = (
+                f"Failed to connect to temperature controller at "
+                f"{self.parent._address}:{self.parent._port}. "
+                f"Original error: {e}"
+            )
+            log.error(error_msg)
+            raise ConnectionError(error_msg) from e
 
     def _set_temperature(self, value: float) -> None:
         """
@@ -215,11 +231,24 @@ class ADRChannel(InstrumentChannel):
 
         Returns:
             The KiutraClient instance for the ADR controller.
+            
+        Raises:
+            ConnectionError: If connection to the ADR controller fails.
         """
-        self.controller = ADRControl(
-            "adr_control", self.parent._address, self.parent._port
-        )
-        return self.controller
+        try:
+            self.controller = ADRControl(
+                "adr_control", self.parent._address, self.parent._port
+            )
+            return self.controller
+        except Exception as e:
+            self.controller = None
+            error_msg = (
+                f"Failed to connect to ADR controller at "
+                f"{self.parent._address}:{self.parent._port}. "
+                f"Original error: {e}"
+            )
+            log.error(error_msg)
+            raise ConnectionError(error_msg) from e
 
     def _set_temperature(self, value: float) -> None:
         """
@@ -301,11 +330,24 @@ class HeaterChannel(InstrumentChannel):
 
         Returns:
             The KiutraClient instance for the heater controller.
+            
+        Raises:
+            ConnectionError: If connection to the heater controller fails.
         """
-        self.controller = HeaterControl(
-            "sample_heater", self.parent._address, self.parent._port
-        )
-        return self.controller
+        try:
+            self.controller = HeaterControl(
+                "sample_heater", self.parent._address, self.parent._port
+            )
+            return self.controller
+        except Exception as e:
+            self.controller = None
+            error_msg = (
+                f"Failed to connect to heater controller at "
+                f"{self.parent._address}:{self.parent._port}. "
+                f"Original error: {e}"
+            )
+            log.error(error_msg)
+            raise ConnectionError(error_msg) from e
 
     def _set_temperature(self, value: float) -> None:
         """
@@ -390,11 +432,24 @@ class MagnetChannel(InstrumentChannel):
 
         Returns:
             The KiutraClient instance for the magnet controller.
+            
+        Raises:
+            ConnectionError: If connection to the magnet controller fails.
         """
-        self.controller = MagnetControl(
-            "sample_magnet", self.parent._address, self.parent._port
-        )
-        return self.controller
+        try:
+            self.controller = MagnetControl(
+                "sample_magnet", self.parent._address, self.parent._port
+            )
+            return self.controller
+        except Exception as e:
+            self.controller = None
+            error_msg = (
+                f"Failed to connect to magnet controller at "
+                f"{self.parent._address}:{self.parent._port}. "
+                f"Original error: {e}"
+            )
+            log.error(error_msg)
+            raise ConnectionError(error_msg) from e
 
 
 class LTypeRapid(Instrument):
