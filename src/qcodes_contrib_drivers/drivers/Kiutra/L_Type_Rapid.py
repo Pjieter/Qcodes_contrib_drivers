@@ -66,8 +66,13 @@ class ADRRampValidator(Validator[numbertypes]):
         if not isinstance(value, (int, float, np.integer, np.floating)):
             raise TypeError(f"{value!r} is not an int or float; {context}")
         setpoint = self._temperature_setpoint_getter()
+        last_temp_max = self._ramp_limits[-1][1]
         for temp_min, temp_max, ramp_max in self._ramp_limits:
-            if temp_min <= setpoint < temp_max:
+            # Make upper bound inclusive for the final interval
+            is_in_range = (temp_min <= setpoint < temp_max) or (
+                setpoint == temp_max == last_temp_max
+            )
+            if is_in_range:
                 self._valid_values = (0, ramp_max)
                 if not (0 <= value <= ramp_max):
                     raise ValueError(
