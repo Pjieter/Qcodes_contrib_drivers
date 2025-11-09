@@ -40,6 +40,7 @@ class ADRRampValidator(Validator[numbertypes]):
         """Initializes the ADRRampValidator."""
         self._ramp_limits = ramp_limits
         self._temperature_setpoint_getter = temperature_setpoint_getter
+        # Initialize to avoid attribute error, set to proper values in validate.
         self._valid_values = (0, 0)
 
     def validate(self, value: numbertypes, context: str = "") -> None:
