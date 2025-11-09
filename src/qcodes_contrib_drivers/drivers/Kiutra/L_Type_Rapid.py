@@ -87,7 +87,7 @@ class ADRRampValidator(Validator[numbertypes]):
         # Check if setpoint is below the minimum covered temperature
         if setpoint < min_temp:
             raise ValueError(
-                f"Setpoint {setpoint} K is below the minimum ramp limit interval (starts at {min_temp} K); {context}"
+                f"Setpoint {setpoint} K is below the minimum ramp limit (starts at {min_temp} K); {context}"
             )
         
         # Check each interval to find the matching one
@@ -113,7 +113,7 @@ class ADRRampValidator(Validator[numbertypes]):
         
         # If we reach here, setpoint falls in a gap between intervals
         raise ValueError(
-            f"Setpoint {setpoint} K is outside all ramp limit intervals; {context}"
+            f"Setpoint {setpoint} K is outside all ramp limits; {context}"
         )
 
 
