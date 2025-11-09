@@ -315,7 +315,8 @@ class HeaterChannel(InstrumentChannel):
             value: The target temperature in Kelvin.
         """
         self.temperature_setpoint(value)
-        self.controller.start(setpoint=value, ramp=self.ramp())
+        if self.controller.state == "IDLE":
+            self.controller.start(setpoint=value, ramp=self.ramp())
 
 
 class MagnetChannel(InstrumentChannel):
