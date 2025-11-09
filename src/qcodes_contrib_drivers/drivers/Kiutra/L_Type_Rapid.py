@@ -70,7 +70,27 @@ class ADRRampValidator(Validator[numbertypes]):
 
         if not isinstance(value, (int, float, np.integer, np.floating)):
             raise TypeError(f"{value!r} is not an int or float; {context}")
+        
+        # Check for empty ramp_limits
+        if not self._ramp_limits:
+            raise ValueError(
+                f"Ramp limits not available from controller; cannot validate ramp rate; {context}"
+            )
+        
+        # Compute min and max temperature bounds from ramp_limits
+        # The list may not be ordered, so find the actual min/max across all intervals
+        min_temp = min(interval[0] for interval in self._ramp_limits)
+        max_temp = max(interval[1] for interval in self._ramp_limits)
+        
         setpoint = self._temperature_setpoint()
+        
+        # Check if setpoint is below the minimum covered temperature
+        if setpoint < min_temp:
+            raise ValueError(
+                f"Setpoint {setpoint} K is below the minimum ramp limit (starts at {min_temp} K); {context}"
+            )
+        
+        # Check each interval to find the matching one
         for temp_min, temp_max, ramp_max in self._ramp_limits:
             if temp_min <= setpoint < temp_max:
                 self._valid_values = (0, ramp_max)
@@ -80,7 +100,9 @@ class ADRRampValidator(Validator[numbertypes]):
                         f"Valid range is 0 to {ramp_max} K/min.; {context}"
                     )
                 return
-        if temp_max <= setpoint <= self.temperature_validator.max_value:
+        
+        # Handle setpoints at or above the last interval's upper bound
+        if max_temp <= setpoint <= self.temperature_validator.max_value:
             self._valid_values = (0, self._maximum_ramp)
             if not (0 <= value <= self._maximum_ramp):
                 raise ValueError(
@@ -88,6 +110,11 @@ class ADRRampValidator(Validator[numbertypes]):
                     f"Valid range is 0 to {self._maximum_ramp} K/min.; {context}"
                 )
             return
+        
+        # If we reach here, setpoint falls in a gap between intervals
+        raise ValueError(
+            f"Setpoint {setpoint} K is outside all ramp limits; {context}"
+        )
 
 
 class TemperatureChannel(InstrumentChannel):
