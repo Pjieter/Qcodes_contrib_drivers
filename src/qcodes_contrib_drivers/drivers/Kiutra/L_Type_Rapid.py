@@ -182,7 +182,6 @@ class TemperatureChannel(InstrumentChannel):
             self.controller = TemperatureControl(
                 "temperature_control", self.parent._address, self.parent._port
             )
-            return self.controller
         except Exception as e:
             error_msg = (
                 f"Failed to connect to temperature controller at "
@@ -191,6 +190,8 @@ class TemperatureChannel(InstrumentChannel):
             )
             log.exception(error_msg)
             raise ConnectionError(error_msg) from e
+        else:
+            return self.controller
 
     def _set_temperature(self, value: float) -> None:
         """
@@ -287,7 +288,6 @@ class ADRChannel(InstrumentChannel):
             self.controller = ADRControl(
                 "adr_control", self.parent._address, self.parent._port
             )
-            return self.controller
         except Exception as e:
             error_msg = (
                 f"Failed to connect to ADR controller at "
@@ -296,6 +296,8 @@ class ADRChannel(InstrumentChannel):
             )
             log.exception(error_msg)
             raise ConnectionError(error_msg) from e
+        else:
+            return self.controller
 
     def _set_temperature(self, value: float) -> None:
         """
@@ -389,7 +391,6 @@ class HeaterChannel(InstrumentChannel):
             self.controller = HeaterControl(
                 "sample_heater", self.parent._address, self.parent._port
             )
-            return self.controller
         except Exception as e:
             error_msg = (
                 f"Failed to connect to heater controller at "
@@ -398,6 +399,8 @@ class HeaterChannel(InstrumentChannel):
             )
             log.exception(error_msg)
             raise ConnectionError(error_msg) from e
+        else:
+            return self.controller
 
     def _set_temperature(self, value: float) -> None:
         """
@@ -496,7 +499,6 @@ class MagnetChannel(InstrumentChannel):
             self.controller = MagnetControl(
                 "sample_magnet", self.parent._address, self.parent._port
             )
-            return self.controller
         except Exception as e:
             error_msg = (
                 f"Failed to connect to magnet controller at "
@@ -505,6 +507,8 @@ class MagnetChannel(InstrumentChannel):
             )
             log.exception(error_msg)
             raise ConnectionError(error_msg) from e
+        else:
+            return self.controller
 
 
 class LTypeRapid(Instrument):
