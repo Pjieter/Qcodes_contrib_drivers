@@ -70,26 +70,26 @@ class ADRRampValidator(Validator[numbertypes]):
 
         if not isinstance(value, (int, float, np.integer, np.floating)):
             raise TypeError(f"{value!r} is not an int or float; {context}")
-        
+
         # Check for empty ramp_limits
         if not self._ramp_limits:
             raise ValueError(
                 f"Ramp limits not available from controller; cannot validate ramp rate; {context}"
             )
-        
+
         # Compute min and max temperature bounds from ramp_limits
         # The list may not be ordered, so find the actual min/max across all intervals
         min_temp = min(interval[0] for interval in self._ramp_limits)
         max_temp = max(interval[1] for interval in self._ramp_limits)
-        
+
         setpoint = self._temperature_setpoint()
-        
+
         # Check if setpoint is below the minimum covered temperature
         if setpoint < min_temp:
             raise ValueError(
                 f"Setpoint {setpoint} K is below the minimum ramp limit (starts at {min_temp} K); {context}"
             )
-        
+
         # Check each interval to find the matching one
         for temp_min, temp_max, ramp_max in self._ramp_limits:
             if temp_min <= setpoint < temp_max:
@@ -100,7 +100,7 @@ class ADRRampValidator(Validator[numbertypes]):
                         f"Valid range is 0 to {ramp_max} K/min.; {context}"
                     )
                 return
-        
+
         # Handle setpoints at or above the last interval's upper bound
         if max_temp <= setpoint <= self.temperature_validator.max_value:
             self._valid_values = (0, self._maximum_ramp)
@@ -110,11 +110,9 @@ class ADRRampValidator(Validator[numbertypes]):
                     f"Valid range is 0 to {self._maximum_ramp} K/min.; {context}"
                 )
             return
-        
+
         # If we reach here, setpoint falls in a gap between intervals
-        raise ValueError(
-            f"Setpoint {setpoint} K is outside all ramp limits; {context}"
-        )
+        raise ValueError(f"Setpoint {setpoint} K is outside all ramp limits; {context}")
 
 
 class TemperatureChannel(InstrumentChannel):
@@ -138,11 +136,11 @@ class TemperatureChannel(InstrumentChannel):
         self._connect_temperature_controller()
         self.temperature_validator = Numbers(0.083, 300.0)
 
-        self.temperature: Parameter = self.add_parameter(
+        self.temperature = self.add_parameter(
             "temperature",
             label="Temperature",
             unit="K",
-            get_cmd=self.controller.kelvin,
+            get_cmd=lambda: self.controller.kelvin,
             set_cmd=self._set_temperature,
             vals=self.temperature_validator,
         )
@@ -152,18 +150,28 @@ class TemperatureChannel(InstrumentChannel):
             "ramp",
             label="Temperature ramp rate",
             unit="K/min",
-            get_cmd=self.controller.ramp,
-            set_cmd=self.controller.ramp,
-            vals=Numbers(0, 5.0),
+            get_cmd=lambda: self.controller.ramp,
+            set_cmd=lambda value: self.controller.set_value("ramp", value),
+            vals=Numbers(0, 2.0),
         )
         """Parameter ramp"""
+
+        self.operation_mode: ManualParameter = self.add_parameter(
+            "operation_mode",
+            parameter_class=ManualParameter,
+            label="Temperature Operation Mode",
+            initial_value="universal",
+            unit=None,
+            vals=Enum("adr", "cadr", "universal", "heater"),
+            docstring="Sets the operation mode of the temperature controller. Options are 'adr', 'cadr', 'universal', and 'heater'.",
+        )
 
         self.temperature_setpoint: Parameter = self.add_parameter(
             "temperature_setpoint",
             label="Temperature setpoint",
             unit="K",
-            get_cmd=self.controller.setpoint,
-            set_cmd=self.controller.setpoint,
+            get_cmd=lambda: self.controller.setpoint,
+            set_cmd=lambda value: self.controller.set_value("setpoint", value),
             vals=self.temperature_validator,
         )
         """Parameter temperature_setpoint"""
@@ -192,226 +200,23 @@ class TemperatureChannel(InstrumentChannel):
             raise ConnectionError(error_msg) from e
         else:
             return self.controller
+        
 
     def _set_temperature(self, value: float) -> None:
         """
         Sets the temperature of the channel.
 
         If the controller is idle, it starts a temperature ramp to the specified
-        value.
+        value using the current control_mode.
 
         Args:
             value: The target temperature in Kelvin.
         """
         ramp = self.ramp()
         self.temperature_setpoint(value)
-        if self.controller.state == "IDLE":
-            self.controller.start(setpoint=value, ramp=ramp)
+        control_mode = self.operation_mode()
+        self.controller.call_method("start_control", setpoint=value, ramp=ramp, control_mode=control_mode)
 
-
-class ADRChannel(InstrumentChannel):
-    """
-    QCoDeS driver for an ADR channel of the Kiutra L-Type Rapid cryostat.
-
-    Args:
-        parent: The parent instrument (LTypeRapid).
-        name: The name of the ADR channel.
-    """
-
-    controller: ADRControl
-
-    def __init__(
-        self,
-        parent: "LTypeRapid",
-        name: str,
-    ) -> None:
-        super().__init__(parent, name)
-
-        self._connect_adr_controller()
-        self.temperature_validator = Numbers(0.083, 8.0)
-
-        self.temperature: Parameter = self.add_parameter(
-            "temperature",
-            label="ADR Temperature",
-            unit="K",
-            get_cmd=self.controller.kelvin,
-            set_cmd=self._set_temperature,
-            vals=self.temperature_validator,
-        )
-        """Parameter temperature"""
-
-        self.temperature_setpoint: Parameter = self.add_parameter(
-            "temperature_setpoint",
-            label="ADR Temperature Setpoint",
-            unit="K",
-            get_cmd=self.controller.setpoint,
-            set_cmd=self.controller.setpoint,
-            vals=self.temperature_validator,
-        )
-        """Parameter temperature_setpoint"""
-
-        self.ramp: Parameter = self.add_parameter(
-            "ramp",
-            label="ADR Ramp Rate",
-            unit="K/min",
-            get_cmd=self.controller.ramp,
-            set_cmd=self.controller.ramp,
-            vals=ADRRampValidator(
-                ramp_limits=self.controller.query_value("ramp_limits"),
-                temperature_setpoint=self.temperature_setpoint,
-            ),
-        )
-        """Parameter ramp"""
-
-        self.operation_mode: Parameter = self.add_parameter(
-            "operation_mode",
-            label="ADR Operation Mode",
-            initial_value="cadr",
-            get_cmd=self.controller.operation_mode,
-            set_cmd=self.controller.operation_mode,
-            vals=Enum("cadr", "adr"),
-            docstring="Sets the operation mode of the ADR. Options are 'cadr' (continuous ADR) and 'adr' (single-shot ADR).",
-        )
-        """Parameter operation_mode"""
-
-    def _connect_adr_controller(self) -> KiutraClient:
-        """
-        Connects to the ADR controller.
-
-        Returns:
-            The KiutraClient instance for the ADR controller.
-
-        Raises:
-            ConnectionError: If connection to the ADR controller fails.
-        """
-        try:
-            self.controller = ADRControl(
-                "adr_control", self.parent._address, self.parent._port
-            )
-        except Exception as e:
-            error_msg = (
-                f"Failed to connect to ADR controller at "
-                f"{self.parent._address}:{self.parent._port}. "
-                f"Original error: {e}"
-            )
-            log.exception(error_msg)
-            raise ConnectionError(error_msg) from e
-        else:
-            return self.controller
-
-    def _set_temperature(self, value: float) -> None:
-        """
-        Sets the temperature of the ADR.
-
-        This method sets the temperature setpoint and then re-validates the ramp
-        rate. If the controller is idle, it starts the ADR temperature ramp.
-
-        Args:
-            value: The target temperature in Kelvin.
-        """
-        ramp = self.ramp()
-        self.temperature_setpoint(value)
-        self.ramp(
-            ramp
-        )  # Force re-setting ramp to ensure validator check after new setpoint
-
-        if self.controller.state == "IDLE":
-            self.controller.start(setpoint=value, ramp=ramp)
-
-
-class HeaterChannel(InstrumentChannel):
-    """
-    QCoDeS driver for a heater channel of the Kiutra L-Type Rapid cryostat.
-
-    Args:
-        parent: The parent instrument (LTypeRapid).
-        name: The name of the heater channel.
-    """
-
-    controller: HeaterControl
-
-    def __init__(
-        self,
-        parent: "LTypeRapid",
-        name: str,
-    ) -> None:
-        super().__init__(parent, name)
-
-        self._connect_heater_controller()
-        self.temperature_validator = Numbers(0.083, 300.0)
-
-        self.power: Parameter = self.add_parameter(
-            "power",
-            label="Heater Power",
-            unit="W",
-            get_cmd=self.controller.power,
-        )
-        """Parameter power"""
-
-        self.temperature_setpoint: Parameter = self.add_parameter(
-            "temperature_setpoint",
-            label="Heater Temperature Setpoint",
-            unit="K",
-            get_cmd=self.controller.setpoint,
-            set_cmd=self.controller.setpoint,
-            vals=self.temperature_validator,
-        )
-        """Parameter temperature_setpoint"""
-
-        self.temperature: Parameter = self.add_parameter(
-            "temperature",
-            label="Heater Temperature",
-            unit="K",
-            get_cmd=self.controller.kelvin,
-            set_cmd=self._set_temperature,
-            vals=self.temperature_validator,
-        )
-        """Parameter temperature"""
-
-        self.ramp: Parameter = self.add_parameter(
-            "ramp",
-            label="Heater Ramp Rate",
-            unit="K/min",
-            get_cmd=self.controller.ramp,
-            set_cmd=self.controller.ramp,
-        )
-        """Parameter ramp"""
-
-    def _connect_heater_controller(self) -> KiutraClient:
-        """
-        Connects to the heater controller.
-
-        Returns:
-            The KiutraClient instance for the heater controller.
-
-        Raises:
-            ConnectionError: If connection to the heater controller fails.
-        """
-        try:
-            self.controller = HeaterControl(
-                "sample_heater", self.parent._address, self.parent._port
-            )
-        except Exception as e:
-            error_msg = (
-                f"Failed to connect to heater controller at "
-                f"{self.parent._address}:{self.parent._port}. "
-                f"Original error: {e}"
-            )
-            log.exception(error_msg)
-            raise ConnectionError(error_msg) from e
-        else:
-            return self.controller
-
-    def _set_temperature(self, value: float) -> None:
-        """
-        Sets the temperature of the heater.
-
-        Args:
-            value: The target temperature in Kelvin.
-        """
-        self.temperature_setpoint(value)
-        if self.controller.state == "IDLE":
-            self.controller.start(setpoint=value, ramp=self.ramp())
 
 
 class MagnetChannel(InstrumentChannel):
@@ -439,35 +244,34 @@ class MagnetChannel(InstrumentChannel):
             "field",
             label="Magnetic Field",
             unit="T",
-            get_cmd=self.controller.field,
-            set_cmd=False,
+            get_cmd=lambda: self.controller.field,
+            set_cmd=self._set_field,
             vals=self.field_validator,
         )
         """Parameter field"""
 
-        self.field_setpoint: ManualParameter = self.add_parameter(
+        self.field_setpoint: Parameter = self.add_parameter(
             "field_setpoint",
-            parameter_class=ManualParameter,
-            initial_value=0.0,
             label="Magnetic Field Setpoint",
+            get_cmd=lambda: self.controller.setpoint,
+            set_cmd=lambda value: self.controller.set_value("setpoint", value),
             unit="T",
             vals=self.field_validator,
         )
         """Parameter field_setpoint"""
 
-        self.field_rate: ManualParameter = self.add_parameter(
-            "field_rate",
-            parameter_class=ManualParameter,
-            initial_value=0.0,
+        self.ramp: Parameter = self.add_parameter(
+            "ramp",
+            parameter_class=Parameter,
+            get_cmd=lambda: self.controller.ramp,
+            set_cmd=lambda value: self.controller.set_value("ramp", value),
             label="Magnetic Field Ramp Rate",
             unit="T/min",
             vals=Numbers(0, 0.5),
         )
-        """Parameter field_rate"""
+        """Parameter field_ramp"""
 
-    def start_ramp(
-        self, field: Optional[float] = None, ramp: Optional[float] = None
-    ) -> None:
+    def _set_field(self, field: float) -> None:
         """
         Starts a magnetic field ramp.
 
@@ -479,11 +283,8 @@ class MagnetChannel(InstrumentChannel):
             field: The target magnetic field in Tesla.
             ramp: The ramp rate in Tesla per minute.
         """
-        if field is not None:
-            self.field_setpoint(field)
-        if ramp is not None:
-            self.field_rate(ramp)
-        self.controller.start(setpoint=self.field_setpoint(), ramp=self.field_rate())
+        self.field_setpoint(field)
+        self.controller.start(setpoint=self.field_setpoint(), ramp=self.ramp())
 
     def _connect_magnet_controller(self) -> KiutraClient:
         """
@@ -534,10 +335,12 @@ class LTypeRapid(Instrument):
         self._address = address
         self._port = port
         temperature_control = TemperatureChannel(self, "temperature_control")
-        adr_control = ADRChannel(self, "adr_control")
-        heater_control = HeaterChannel(self, "heater_control")
         magnet_control = MagnetChannel(self, "magnet_control")
         self.add_submodule("temperature_control", temperature_control)
-        self.add_submodule("adr_control", adr_control)
-        self.add_submodule("heater_control", heater_control)
         self.add_submodule("magnet_control", magnet_control)
+
+    def get_idn(self):
+        return {'vendor': 'Kiutra',
+                'model': 'L-Type Rapid',
+                'serial': '',
+                'firmware': ''}
