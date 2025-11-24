@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 
 # Create standard on/off value mapping
-on_off_vals = create_on_off_val_mapping(on_val="ON", off_val="OFF")
+on_off_vals = create_on_off_val_mapping(on_val="1", off_val="0")
 
 
 class ApertureTimeValidator(Validator):
