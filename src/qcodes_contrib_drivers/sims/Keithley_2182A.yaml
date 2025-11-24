@@ -43,9 +43,9 @@ devices:
         specs:
           type: float
 
-      # Auto range setting - use ON/OFF strings
+      # Auto range setting - use 1/0 strings
       auto_range:
-        default: "ON"
+        default: "1"
         getter:
           q: "SENS:VOLT:RANG:AUTO?"
           r: "{}"
@@ -53,7 +53,7 @@ devices:
           q: "SENS:VOLT:RANG:AUTO {}"
         specs:
           type: str
-          valid: ["ON", "OFF"]
+          valid: ["1", "0"]
 
       # NPLC (Number of Power Line Cycles)
       nplc:
@@ -100,9 +100,9 @@ devices:
           type: float
 
 
-      # Display enabled - use ON/OFF strings
+      # Display enabled - use 1/0 strings
       display_enabled:
-        default: "ON"
+        default: "1"
         getter:
           q: "DISP:ENAB?"
           r: "{}"
@@ -110,12 +110,12 @@ devices:
           q: "DISP:ENAB {}"
         specs:
           type: str
-          valid: ["ON", "OFF"]
+          valid: ["1", "0"]
 
 
-      # Analog filter - use ON/OFF strings
+      # Analog filter - use 1/0 strings
       analog_filter:
-        default: "OFF"
+        default: "0"
         getter:
           q: "SENS:VOLT:DC:LPAS?"
           r: "{}"
@@ -123,11 +123,11 @@ devices:
           q: "SENS:VOLT:DC:LPAS {}"
         specs:
           type: str
-          valid: ["ON", "OFF"]
+          valid: ["1", "0"]
 
-      # Digital filter - use ON/OFF strings
+      # Digital filter - use 1/0 strings
       digital_filter:
-        default: "OFF"
+        default: "0"
         getter:
           q: "SENS:VOLT:DC:DFIL?"
           r: "{}"
@@ -135,11 +135,11 @@ devices:
           q: "SENS:VOLT:DC:DFIL {}"
         specs:
           type: str
-          valid: ["ON", "OFF"]
+          valid: ["1", "0"]
 
-      # Auto-zero - use ON/OFF strings
+      # Auto-zero - use 1/0 strings
       auto_zero:
-        default: "ON"
+        default: "1"
         getter:
           q: "SYST:AZER?"
           r: "{}"
@@ -147,7 +147,7 @@ devices:
           q: "SYST:AZER {}"
         specs:
           type: str
-          valid: ["ON", "OFF"]
+          valid: ["1", "0"]
 
       # Line frequency detection
       line_frequency:
