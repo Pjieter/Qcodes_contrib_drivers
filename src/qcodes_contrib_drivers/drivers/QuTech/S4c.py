@@ -169,15 +169,29 @@ class S4c(Instrument):
             docstring="Sets if the x0.01 jumper is installed (True) or not installed (False)",
         )
 
+        self.total_gain: Parameter = self.add_parameter(
+            "total_gain",
+            get_cmd=self._get_total_output,
+            unit="",
+            label="Total source gain",
+            docstring="Source transfer for the active source_mode: full-scale "
+                      "current (A/V) in current mode, voltage gain (V/V = 1) in "
+                      "voltage mode.",
+        )
+
     def _get_total_output(self) -> float:
         """
-        Calculate total output value considering the source mode and range.
+        Calculate total source transfer for the current source_mode.
 
         Returns:
-            Total output value.
+            Voltage gain (V/V = 1.0) in voltage modes; full-scale current
+            (A/V) from the range map in current mode.
         """
-        # This is a placeholder implementation. Actual implementation would depend
-        # on how the source mode and range affect the output.
+        # Voltage modes: S4c output is a fixed 1 V/V. The `range` knob sets the
+        # current compliance (V) and `R_out` the output resistance (V+R);
+        # neither changes the voltage gain.
+        if self.source_mode.get() in ("V", "V+R"):
+            return 1.0
         range_map = {
             "1n": 1e-9,
             "10n": 10e-9,
@@ -190,3 +204,12 @@ class S4c(Instrument):
             "20m": 20e-3,
         }
         return range_map.get(self.range.get(), 0.0)
+    
+    def get_idn(self) -> dict[str, str | None]:
+        idn_dict = {
+            "vendor": "QuTech",
+            "model": "S4c",
+            "serial": None,
+            "firmware": None,
+        }
+        return idn_dict
