@@ -204,7 +204,7 @@ class S4c(Instrument):
             "20m": 20e-3,
         }
         return range_map.get(self.range.get(), 0.0)
-    
+
     def get_idn(self) -> dict[str, str | None]:
         idn_dict = {
             "vendor": "QuTech",
