@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Optional
 from collections.abc import Callable
 import logging
+import time
 
 import numpy as np
 from qcodes.instrument import Instrument, InstrumentBaseKWArgs, InstrumentChannel
@@ -125,6 +126,7 @@ class TemperatureChannel(InstrumentChannel):
     """
 
     controller: TemperatureControl
+    adr_controller: ADRControl
 
     def __init__(
         self,
@@ -134,6 +136,7 @@ class TemperatureChannel(InstrumentChannel):
         super().__init__(parent, name)
 
         self._connect_temperature_controller()
+        self._connect_adr_controller()
         self.temperature_validator = Numbers(0.083, 300.0)
 
         self.temperature = self.add_parameter(
@@ -176,6 +179,43 @@ class TemperatureChannel(InstrumentChannel):
         )
         """Parameter temperature_setpoint"""
 
+        self.blocking: ManualParameter = self.add_parameter(
+            "blocking",
+            parameter_class=ManualParameter,
+            label="Blocking mode for temperature setting",
+            initial_value=True,
+            vals=Enum(True, False),
+            docstring="If True, temperature setter waits for stabilization. If False, returns immediately.",
+        )
+        """Parameter blocking"""
+
+        self.timeout: ManualParameter = self.add_parameter(
+            "timeout",
+            parameter_class=ManualParameter,
+            label="Timeout for temperature stabilization",
+            unit="s",
+            initial_value=3600.0,
+            vals=Numbers(0, float('inf')),
+            docstring="Maximum time to wait for temperature stabilization in seconds.",
+        )
+        """Parameter timeout"""
+
+        self.status: Parameter = self.add_parameter(
+            "status",
+            label="Temperature controller status",
+            get_cmd=lambda: self.controller.query_value('status'),
+            docstring="Current status of the temperature controller as (status_code, status_message).",
+        )
+        """Parameter status"""
+
+        self.stable: Parameter = self.add_parameter(
+            "stable",
+            label="Temperature stability status",
+            get_cmd=lambda: self.controller.query_value('status')[0] == 200,
+            docstring="True if the temperature controller is in a stable state (status is 200).",
+        )
+        """Parameter stable"""
+
     def _connect_temperature_controller(self) -> KiutraClient:
         """
         Connects to the temperature controller.
@@ -200,22 +240,116 @@ class TemperatureChannel(InstrumentChannel):
             raise ConnectionError(error_msg) from e
         else:
             return self.controller
-        
+
+    def _connect_adr_controller(self) -> KiutraClient:
+        """
+        Connects to the ADR controller.
+
+        Returns:
+            The KiutraClient instance for the ADR controller.
+
+        Raises:
+            ConnectionError: If connection to the ADR controller fails.
+        """
+        try:
+            self.adr_controller = ADRControl(
+                "adr_control", self.parent._address, self.parent._port
+            )
+        except Exception as e:
+            error_msg = (
+                f"Failed to connect to adr controller at "
+                f"{self.parent._address}:{self.parent._port}. "
+                f"Original error: {e}"
+            )
+            log.exception(error_msg)
+            raise ConnectionError(error_msg) from e
+        else:
+            return self.adr_controller
+
 
     def _set_temperature(self, value: float) -> None:
         """
         Sets the temperature of the channel.
 
         If the controller is idle, it starts a temperature ramp to the specified
-        value using the current control_mode.
+        value using the current control_mode. Blocks until the temperature is stable
+        or timeout occurs, depending on the 'blocking' parameter setting.
 
         Args:
             value: The target temperature in Kelvin.
+
+        Raises:
+            TimeoutError: If the temperature does not stabilize within the timeout period
+                         and blocking mode is enabled.
         """
         ramp = self.ramp()
         self.temperature_setpoint(value)
         control_mode = self.operation_mode()
         self.controller.call_method("start_control", setpoint=value, ramp=ramp, control_mode=control_mode)
+
+        if self.blocking():
+            timeout = self.timeout()
+            self._wait_for_temperature(timeout=timeout, check_interval=1.0)
+
+    def _wait_for_temperature(self, timeout: float = 3600.0, check_interval: float = 1.0) -> None:
+        """
+        Waits for the temperature controller to reach a stable state.
+
+        This method blocks until the controller status indicates "done" or "stable",
+        or until the timeout is reached.
+
+        Args:
+            timeout: Maximum time to wait in seconds (default: 3600s = 1 hour).
+            check_interval: Time between status checks in seconds (default: 1.0s).
+
+        Raises:
+            TimeoutError: If the temperature does not stabilize within the timeout period.
+        """
+        start_time = time.time()
+
+        while True:
+            elapsed = time.time() - start_time
+            if elapsed > timeout:
+                status = self.status()
+                raise TimeoutError(
+                    f"Temperature did not stabilize within {timeout} seconds. "
+                    f"Current status: {status}"
+                )
+
+            if self.stable():
+                log.info(f"Temperature stabilized. Status: {self.status()}")
+                return
+
+            time.sleep(check_interval)
+
+
+    def wait_for_stable(self, timeout: Optional[float] = None, check_interval: float = 1.0) -> None:
+        """
+        Manually wait for the temperature to stabilize.
+
+        This is useful when temperature was set with blocking=False and you want to
+        wait for stabilization later.
+
+        Args:
+            timeout: Maximum time to wait in seconds. If None, uses the timeout parameter value.
+            check_interval: Time between status checks in seconds (default: 1.0s).
+
+        Raises:
+            TimeoutError: If the temperature does not stabilize within the timeout period.
+        """
+        if timeout is None:
+            timeout = float(self.timeout())
+        self._wait_for_temperature(timeout=timeout, check_interval=check_interval)
+
+    def recharge_adr(self) -> None:
+        """
+        Recharges the ADR.
+
+        This method calls the recharge function of the ADR controller.
+        """
+        if not isinstance(self.adr_controller, ADRControl):
+            raise TypeError("ADR controller is not an ADRControl instance.")
+        self.adr_controller.call_method("recharge")
 
 
 
@@ -238,7 +372,7 @@ class MagnetChannel(InstrumentChannel):
         super().__init__(parent, name)
 
         self._connect_magnet_controller()
-        self.field_validator = Numbers(-5, 5)
+        self.field_validator = Numbers(-5.5, 5.5)
 
         self.field: Parameter = self.add_parameter(
             "field",
@@ -271,6 +405,43 @@ class MagnetChannel(InstrumentChannel):
         )
         """Parameter field_ramp"""
 
+        self.status: Parameter = self.add_parameter(
+            "status",
+            label="Magnet controller status",
+            get_cmd=lambda: self.controller.query_value('status'),
+            docstring="Current status of the magnet controller as (status_code, status_message).",
+        )
+        """Parameter status"""
+
+        self.stable: Parameter = self.add_parameter(
+            "stable",
+            label="Field stability status",
+            get_cmd=lambda: self.controller.query_value('status')[0] == 200,
+            docstring="True if the magnet controller is in a stable state (status is 200).",
+        )
+        """Parameter stable"""
+
+        self.blocking: ManualParameter = self.add_parameter(
+            "blocking",
+            parameter_class=ManualParameter,
+            label="Blocking mode for field setting",
+            initial_value=True,
+            vals=Enum(True, False),
+            docstring="If True, field setter waits for stabilization. If False, returns immediately.",
+        )
+        """Parameter blocking"""
+
+        self.timeout: ManualParameter = self.add_parameter(
+            "timeout",
+            parameter_class=ManualParameter,
+            label="Timeout for field stabilization",
+            unit="s",
+            initial_value=3600.0,
+            vals=Numbers(0, float('inf')),
+            docstring="Maximum time to wait for field stabilization in seconds.",
+        )
+        """Parameter timeout"""
+
     def _set_field(self, field: float) -> None:
         """
         Starts a magnetic field ramp.
@@ -285,6 +456,10 @@ class MagnetChannel(InstrumentChannel):
         """
         self.field_setpoint(field)
         self.controller.start(setpoint=self.field_setpoint(), ramp=self.ramp())
+        if self.blocking():
+            timeout = self.timeout()
+            self._wait_for_field(timeout=timeout, check_interval=1.0)
+
 
     def _connect_magnet_controller(self) -> KiutraClient:
         """
@@ -310,6 +485,56 @@ class MagnetChannel(InstrumentChannel):
             raise ConnectionError(error_msg) from e
         else:
             return self.controller
+
+    def _wait_for_field(self, timeout: float = 3600.0, check_interval: float = 1.0) -> None:
+        """
+        Waits for the field controller to reach a stable state.
+
+        This method blocks until the controller status indicates "done" or "stable",
+        or until the timeout is reached.
+
+        Args:
+            timeout: Maximum time to wait in seconds (default: 3600s = 1 hour).
+            check_interval: Time between status checks in seconds (default: 1.0s).
+
+        Raises:
+            TimeoutError: If the field does not stabilize within the timeout period.
+        """
+        start_time = time.time()
+
+        while True:
+            elapsed = time.time() - start_time
+            if elapsed > timeout:
+                status = self.status()
+                raise TimeoutError(
+                    f"Field did not stabilize within {timeout} seconds. "
+                    f"Current status: {status}"
+                )
+
+            if self.stable():
+                log.info(f"Field stabilized. Status: {self.status()}")
+                return
+
+            time.sleep(check_interval)
+
+
+    def wait_for_stable(self, timeout: Optional[float] = None, check_interval: float = 1.0) -> None:
+        """
+        Manually wait for the field to stabilize.
+
+        This is useful when field was set with blocking=False and you want to
+        wait for stabilization later.
+
+        Args:
+            timeout: Maximum time to wait in seconds. If None, uses the timeout parameter value.
+            check_interval: Time between status checks in seconds (default: 1.0s).
+
+        Raises:
+            TimeoutError: If the field does not stabilize within the timeout period.
+        """
+        if timeout is None:
+            timeout = float(self.timeout())
+        self._wait_for_field(timeout=timeout, check_interval=check_interval)
 
 
 class LTypeRapid(Instrument):
