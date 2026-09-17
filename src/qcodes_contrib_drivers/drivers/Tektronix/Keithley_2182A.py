@@ -2,7 +2,7 @@
 QCoDeS driver for the Keithley 2182A nanovoltmeter.
 
 This driver implements the full functionality based on the Keithley 2182A user manual,
-with particular focus on the MEASure and FETCh commands and related functionality.
+with particular focus on the READ and FETCh commands and related functionality.
 """
 
 from functools import partial
@@ -120,8 +120,10 @@ class Keithley2182A(VisaInstrument):
     including voltage measurements and various
     configuration options as specified in the user manual sections 12-15.
 
-    The driver implements the MEASure and FETCh commands along with all
-    related measurement and configuration functionality.
+    The driver implements the READ and FETCh commands along with all
+    related measurement and configuration functionality. MEASure is avoided
+    because it implies a CONFigure, which would reset the range, NPLC and
+    filter settings this driver exposes as parameters.
     """
 
     default_terminator = "\n"
@@ -167,7 +169,7 @@ class Keithley2182A(VisaInstrument):
             label="DC Voltage",
             unit="V",
             get_cmd=self._measure_voltage,
-            docstring="Measure DC voltage using the MEASure command",
+            docstring="Trigger a DC voltage measurement with READ? and return it in volts",
         )
 
         # NPLC (Number of Power Line Cycles) parameter
@@ -334,16 +336,19 @@ class Keithley2182A(VisaInstrument):
 
     def _measure_voltage(self) -> float:
         """
-        Measure DC voltage using the MEASure command.
+        Trigger a DC voltage measurement and return the result.
 
-        The MEASure command automatically configures the instrument
-        for voltage measurement and returns the result.
+        This deliberately uses READ? and not MEASure. MEASure is shorthand for
+        a CONFigure followed by a READ?, and CONFigure resets range, NPLC and
+        filtering to their defaults. Using it here would silently discard the
+        very settings this driver exposes as parameters, so a measurement taken
+        through the `voltage` parameter would not use the configured range or
+        integration time.
 
         Returns:
             Measured voltage in volts
         """
-        response = self.ask("MEAS:VOLT:DC?")
-        return float(response)
+        return self.read()
 
     def fetch(self) -> float:
         """
