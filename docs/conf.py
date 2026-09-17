@@ -16,7 +16,7 @@
 
 # -- General configuration ---------------------------------------------------
 import qcodes_contrib_drivers
-
+from intersphinx_registry import get_intersphinx_mapping
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
@@ -89,19 +89,14 @@ html_theme = "furo"
 html_static_path = ["_static"]
 
 # Configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {
-    "pandas": ("https://pandas.pydata.org/pandas-docs/stable", None),
-    "matplotlib": ("https://matplotlib.org/stable", None),
-    "python": ("https://docs.python.org/3", None),
-    "numpy": ("https://numpy.org/doc/stable", None),
-    "pyvisa": ("https://pyvisa.readthedocs.io/en/stable", None),
-    "IPython": (
-        "https://ipython.readthedocs.io/en/stable",
-        None,
-    ),
+intersphinx_mapping = get_intersphinx_mapping(
+    packages={"ipython", "matplotlib", "numpy", "pandas", "python", "pyvisa", "xarray"}
+)
+# add packages that are not in the intersphinx_registry
+intersphinx_mapping.update({
     "qcodes": ("https://microsoft.github.io/Qcodes", None),
     "TimeTagger": ("https://www.swabianinstruments.com/static/documentation/TimeTagger/", None),
-}
+})
 
 
 version = "{}".format(qcodes_contrib_drivers.__version__)
@@ -110,7 +105,11 @@ release = version
 
 # we are using non local images for badges. These will change so we dont
 # want to store them locally.
-suppress_warnings = ["image.nonlocal_uri"]
+# "ref.python" is suppressed because several drivers document a parameter
+# called "temperature", and the generated module pages reference it without
+# qualifying which one they mean. Sphinx reports that as an ambiguous cross-
+# reference, and the docs build runs with -W, so it would fail the build.
+suppress_warnings = ["image.nonlocal_uri", "ref.python"]
 
 pygments_style = "sphinx"
 
@@ -134,5 +133,6 @@ autodoc_mock_imports = [
     "serial",
     "scipy",
     "nanonis_tramea",
-    "windfreak"
+    "windfreak",
+    "kiutra_api"
 ]
