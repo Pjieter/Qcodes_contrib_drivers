@@ -148,7 +148,174 @@ class ADRRampValidator(Validator[numbertypes]):
         raise ValueError(f"Setpoint {setpoint} K is outside all ramp limits; {context}")
 
 
-class TemperatureChannel(InstrumentChannel):
+class _StabilizingChannel(InstrumentChannel):
+    """
+    Base for channels that start a ramp and then wait for it to settle.
+
+    The temperature and magnet channels drive different controllers, but the
+    settling machinery around them is the same: the same four parameters, the
+    same polling loop, and the same guard against acting on a stable status
+    left over from the previous setpoint.
+
+    A subclass sets :attr:`_quantity` and :attr:`_controller_name`, assigns
+    ``self.controller``, and then calls :meth:`_add_stability_parameters`.
+    """
+
+    #: What this channel ramps, as it appears in labels and messages.
+    _quantity: str = ""
+
+    #: How this channel's controller is named in parameter documentation.
+    _controller_name: str = ""
+
+    @property
+    def _quantity_title(self) -> str:
+        """The ramped quantity with a leading capital, for messages."""
+        return self._quantity[:1].upper() + self._quantity[1:]
+
+    def _add_stability_parameters(self) -> None:
+        """
+        Adds the status, stable, blocking and timeout parameters.
+
+        Called by subclasses once ``self.controller`` is connected.
+        """
+        quantity = self._quantity
+        controller = self._controller_name
+        controller_title = controller[:1].upper() + controller[1:]
+
+        self.status: Parameter = self.add_parameter(
+            "status",
+            label=f"{controller_title} status",
+            get_cmd=lambda: self.controller.query_value("status"),
+            docstring=(
+                f"Current status of the {controller} as "
+                f"(status_code, status_message)."
+            ),
+        )
+        """Parameter status"""
+
+        self.stable: Parameter = self.add_parameter(
+            "stable",
+            label=f"{self._quantity_title} stability status",
+            get_cmd=lambda: self.controller.query_value("status")[0] == 200,
+            docstring=(
+                f"True if the {controller} is in a stable state (status is 200)."
+            ),
+        )
+        """Parameter stable"""
+
+        self.blocking: ManualParameter = self.add_parameter(
+            "blocking",
+            parameter_class=ManualParameter,
+            label=f"Blocking mode for {quantity} setting",
+            initial_value=True,
+            vals=Bool(),
+            docstring=(
+                f"If True, {quantity} setter waits for stabilization. "
+                f"If False, returns immediately."
+            ),
+        )
+        """Parameter blocking"""
+
+        self.timeout: ManualParameter = self.add_parameter(
+            "timeout",
+            parameter_class=ManualParameter,
+            label=f"Timeout for {quantity} stabilization",
+            unit="s",
+            initial_value=3600.0,
+            vals=Numbers(0, float("inf")),
+            docstring=(
+                f"Maximum time to wait for {quantity} stabilization in seconds."
+            ),
+        )
+        """Parameter timeout"""
+
+    def _wait_for_stable_status(
+        self,
+        timeout: float = 3600.0,
+        check_interval: float = 1.0,
+        settle_timeout: float = 10.0,
+    ) -> None:
+        """
+        Waits for the controller to reach a stable state.
+
+        Immediately after a ramp is started the controller can still report the
+        stable status (200) left over from the previous setpoint, so this first
+        waits for it to report a non-stable status. If that does not happen
+        within ``settle_timeout`` the setpoint is assumed to have been reached
+        already and stabilization is not awaited.
+
+        Args:
+            timeout: Maximum time to wait in seconds (default: 3600s = 1 hour).
+            check_interval: Time between status checks in seconds (default: 1.0s).
+            settle_timeout: Maximum time to wait for the controller to leave the
+                stable status (200) before assuming the setpoint was already
+                reached (default: 10.0s).
+
+        Raises:
+            TimeoutError: If the controller does not stabilize within the
+                timeout period.
+        """
+        quantity = self._quantity_title
+
+        if not _wait_until_started(self.stable, settle_timeout, check_interval):
+            log.info(
+                f"{quantity} controller still reports a stable status after "
+                f"{settle_timeout} s; assuming the setpoint was already reached. "
+                f"Status: {self.status()}"
+            )
+            return
+
+        start_time = time.time()
+
+        while True:
+            elapsed = time.time() - start_time
+            if elapsed > timeout:
+                status = self.status()
+                raise TimeoutError(
+                    f"{quantity} did not stabilize within {timeout} seconds. "
+                    f"Current status: {status}"
+                )
+
+            if self.stable():
+                log.info(f"{quantity} stabilized. Status: {self.status()}")
+                return
+
+            time.sleep(check_interval)
+
+    def wait_for_stable(
+        self,
+        timeout: Optional[float] = None,
+        check_interval: float = 1.0,
+        settle_timeout: float = 10.0,
+    ) -> None:
+        """
+        Manually wait for the channel to stabilize.
+
+        This is useful when the setpoint was applied with blocking=False and you
+        want to wait for stabilization later.
+
+        Args:
+            timeout: Maximum time to wait in seconds. If None, uses the timeout
+                parameter value.
+            check_interval: Time between status checks in seconds (default: 1.0s).
+            settle_timeout: Maximum time to wait for the controller to leave the
+                stable status (200) before assuming the setpoint was already
+                reached (default: 10.0s).
+
+        Raises:
+            TimeoutError: If the channel does not stabilize within the timeout
+                period.
+        """
+        if timeout is None:
+            timeout = float(self.timeout())
+        self._wait_for_stable_status(
+            timeout=timeout,
+            check_interval=check_interval,
+            settle_timeout=settle_timeout,
+        )
+
+
+class TemperatureChannel(_StabilizingChannel):
     """
     QCoDeS driver for a temperature channel of the Kiutra L-Type Rapid cryostat.
 
@@ -175,6 +342,9 @@ class TemperatureChannel(InstrumentChannel):
         parent: The parent instrument (LTypeRapid).
         name: The name of the temperature channel.
     """
+
+    _quantity = "temperature"
+    _controller_name = "temperature controller"
 
     controller: TemperatureControl
     adr_controller: ADRControl
@@ -230,42 +400,10 @@ class TemperatureChannel(InstrumentChannel):
         )
         """Parameter temperature_setpoint"""
 
-        self.blocking: ManualParameter = self.add_parameter(
-            "blocking",
-            parameter_class=ManualParameter,
-            label="Blocking mode for temperature setting",
-            initial_value=True,
-            vals=Bool(),
-            docstring="If True, temperature setter waits for stabilization. If False, returns immediately.",
-        )
-        """Parameter blocking"""
+        self._add_stability_parameters()
 
-        self.timeout: ManualParameter = self.add_parameter(
-            "timeout",
-            parameter_class=ManualParameter,
-            label="Timeout for temperature stabilization",
-            unit="s",
-            initial_value=3600.0,
-            vals=Numbers(0, float('inf')),
-            docstring="Maximum time to wait for temperature stabilization in seconds.",
-        )
-        """Parameter timeout"""
 
-        self.status: Parameter = self.add_parameter(
-            "status",
-            label="Temperature controller status",
-            get_cmd=lambda: self.controller.query_value('status'),
-            docstring="Current status of the temperature controller as (status_code, status_message).",
-        )
-        """Parameter status"""
 
-        self.stable: Parameter = self.add_parameter(
-            "stable",
-            label="Temperature stability status",
-            get_cmd=lambda: self.controller.query_value('status')[0] == 200,
-            docstring="True if the temperature controller is in a stable state (status is 200).",
-        )
-        """Parameter stable"""
 
     def _connect_temperature_controller(self) -> KiutraClient:
         """
@@ -340,85 +478,10 @@ class TemperatureChannel(InstrumentChannel):
 
         if self.blocking():
             timeout = self.timeout()
-            self._wait_for_temperature(timeout=timeout, check_interval=1.0)
-
-    def _wait_for_temperature(
-        self,
-        timeout: float = 3600.0,
-        check_interval: float = 1.0,
-        settle_timeout: float = 10.0,
-    ) -> None:
-        """
-        Waits for the temperature controller to reach a stable state.
-
-        This method blocks until the controller status indicates "done" or "stable",
-        or until the timeout is reached.
-
-        Args:
-            timeout: Maximum time to wait in seconds (default: 3600s = 1 hour).
-            check_interval: Time between status checks in seconds (default: 1.0s).
-            settle_timeout: Maximum time to wait for the controller to leave the
-                stable status (200) before assuming the setpoint was already
-                reached (default: 10.0s).
-
-        Raises:
-            TimeoutError: If the temperature does not stabilize within the timeout period.
-        """
-        if not _wait_until_started(self.stable, settle_timeout, check_interval):
-            log.info(
-                f"Temperature controller still reports a stable status after "
-                f"{settle_timeout} s; assuming the setpoint was already reached. "
-                f"Status: {self.status()}"
-            )
-            return
-
-        start_time = time.time()
-
-        while True:
-            elapsed = time.time() - start_time
-            if elapsed > timeout:
-                status = self.status()
-                raise TimeoutError(
-                    f"Temperature did not stabilize within {timeout} seconds. "
-                    f"Current status: {status}"
-                )
-
-            if self.stable():
-                log.info(f"Temperature stabilized. Status: {self.status()}")
-                return
-
-            time.sleep(check_interval)
+            self._wait_for_stable_status(timeout=timeout, check_interval=1.0)
 
 
-    def wait_for_stable(
-        self,
-        timeout: Optional[float] = None,
-        check_interval: float = 1.0,
-        settle_timeout: float = 10.0,
-    ) -> None:
-        """
-        Manually wait for the temperature to stabilize.
 
-        This is useful when temperature was set with blocking=False and you want to
-        wait for stabilization later.
-
-        Args:
-            timeout: Maximum time to wait in seconds. If None, uses the timeout parameter value.
-            check_interval: Time between status checks in seconds (default: 1.0s).
-            settle_timeout: Maximum time to wait for the controller to leave the
-                stable status (200) before assuming the setpoint was already
-                reached (default: 10.0s).
-
-        Raises:
-            TimeoutError: If the temperature does not stabilize within the timeout period.
-        """
-        if timeout is None:
-            timeout = float(self.timeout())
-        self._wait_for_temperature(
-            timeout=timeout,
-            check_interval=check_interval,
-            settle_timeout=settle_timeout,
-        )
 
     def recharge_adr(self) -> None:
         """
@@ -432,7 +495,7 @@ class TemperatureChannel(InstrumentChannel):
 
 
 
-class MagnetChannel(InstrumentChannel):
+class MagnetChannel(_StabilizingChannel):
     """
     QCoDeS driver for a magnet channel of the Kiutra L-Type Rapid cryostat.
 
@@ -459,6 +522,9 @@ class MagnetChannel(InstrumentChannel):
         parent: The parent instrument (LTypeRapid).
         name: The name of the magnet channel.
     """
+
+    _quantity = "field"
+    _controller_name = "magnet controller"
 
     controller: MagnetControl
 
@@ -503,42 +569,10 @@ class MagnetChannel(InstrumentChannel):
         )
         """Parameter field_ramp"""
 
-        self.status: Parameter = self.add_parameter(
-            "status",
-            label="Magnet controller status",
-            get_cmd=lambda: self.controller.query_value('status'),
-            docstring="Current status of the magnet controller as (status_code, status_message).",
-        )
-        """Parameter status"""
+        self._add_stability_parameters()
 
-        self.stable: Parameter = self.add_parameter(
-            "stable",
-            label="Field stability status",
-            get_cmd=lambda: self.controller.query_value('status')[0] == 200,
-            docstring="True if the magnet controller is in a stable state (status is 200).",
-        )
-        """Parameter stable"""
 
-        self.blocking: ManualParameter = self.add_parameter(
-            "blocking",
-            parameter_class=ManualParameter,
-            label="Blocking mode for field setting",
-            initial_value=True,
-            vals=Bool(),
-            docstring="If True, field setter waits for stabilization. If False, returns immediately.",
-        )
-        """Parameter blocking"""
 
-        self.timeout: ManualParameter = self.add_parameter(
-            "timeout",
-            parameter_class=ManualParameter,
-            label="Timeout for field stabilization",
-            unit="s",
-            initial_value=3600.0,
-            vals=Numbers(0, float('inf')),
-            docstring="Maximum time to wait for field stabilization in seconds.",
-        )
-        """Parameter timeout"""
 
     def _set_field(self, field: float) -> None:
         """
@@ -556,7 +590,7 @@ class MagnetChannel(InstrumentChannel):
         self.controller.start(setpoint=self.field_setpoint(), ramp=self.ramp())
         if self.blocking():
             timeout = self.timeout()
-            self._wait_for_field(timeout=timeout, check_interval=1.0)
+            self._wait_for_stable_status(timeout=timeout, check_interval=1.0)
 
 
     def _connect_magnet_controller(self) -> KiutraClient:
@@ -584,83 +618,8 @@ class MagnetChannel(InstrumentChannel):
         else:
             return self.controller
 
-    def _wait_for_field(
-        self,
-        timeout: float = 3600.0,
-        check_interval: float = 1.0,
-        settle_timeout: float = 10.0,
-    ) -> None:
-        """
-        Waits for the field controller to reach a stable state.
-
-        This method blocks until the controller status indicates "done" or "stable",
-        or until the timeout is reached.
-
-        Args:
-            timeout: Maximum time to wait in seconds (default: 3600s = 1 hour).
-            check_interval: Time between status checks in seconds (default: 1.0s).
-            settle_timeout: Maximum time to wait for the controller to leave the
-                stable status (200) before assuming the setpoint was already
-                reached (default: 10.0s).
-
-        Raises:
-            TimeoutError: If the field does not stabilize within the timeout period.
-        """
-        if not _wait_until_started(self.stable, settle_timeout, check_interval):
-            log.info(
-                f"Field controller still reports a stable status after "
-                f"{settle_timeout} s; assuming the setpoint was already reached. "
-                f"Status: {self.status()}"
-            )
-            return
-
-        start_time = time.time()
-
-        while True:
-            elapsed = time.time() - start_time
-            if elapsed > timeout:
-                status = self.status()
-                raise TimeoutError(
-                    f"Field did not stabilize within {timeout} seconds. "
-                    f"Current status: {status}"
-                )
-
-            if self.stable():
-                log.info(f"Field stabilized. Status: {self.status()}")
-                return
-
-            time.sleep(check_interval)
 
 
-    def wait_for_stable(
-        self,
-        timeout: Optional[float] = None,
-        check_interval: float = 1.0,
-        settle_timeout: float = 10.0,
-    ) -> None:
-        """
-        Manually wait for the field to stabilize.
-
-        This is useful when field was set with blocking=False and you want to
-        wait for stabilization later.
-
-        Args:
-            timeout: Maximum time to wait in seconds. If None, uses the timeout parameter value.
-            check_interval: Time between status checks in seconds (default: 1.0s).
-            settle_timeout: Maximum time to wait for the controller to leave the
-                stable status (200) before assuming the setpoint was already
-                reached (default: 10.0s).
-
-        Raises:
-            TimeoutError: If the field does not stabilize within the timeout period.
-        """
-        if timeout is None:
-            timeout = float(self.timeout())
-        self._wait_for_field(
-            timeout=timeout,
-            check_interval=check_interval,
-            settle_timeout=settle_timeout,
-        )
 
 
 class LTypeRapid(Instrument):
