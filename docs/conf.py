@@ -129,5 +129,6 @@ autodoc_mock_imports = [
     "serial",
     "scipy",
     "nanonis_tramea",
-    "windfreak"
+    "windfreak",
+    "kiutra_api"
 ]
