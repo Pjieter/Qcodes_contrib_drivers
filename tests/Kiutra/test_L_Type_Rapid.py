@@ -17,6 +17,11 @@ guard that enforces this and for the environment variables it reads.
 import pytest
 import numpy as np
 
+# The driver imports kiutra_api at module scope, and kiutra_api is a vendor
+# package that is not on PyPI, so it will be missing on most machines. Skip the
+# whole module rather than failing collection for everyone else.
+pytest.importorskip("kiutra_api", reason="kiutra_api is not installed")
+
 from qcodes_contrib_drivers.drivers.Kiutra.L_Type_Rapid import (
     LTypeRapid,
     TemperatureChannel,
