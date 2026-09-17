@@ -23,6 +23,38 @@ if TYPE_CHECKING:
 numbertypes = float | int | np.floating | np.integer
 
 
+def _wait_until_started(
+    stable: Callable[[], bool],
+    settle_timeout: float,
+    check_interval: float,
+) -> bool:
+    """
+    Waits for a controller to acknowledge a newly started sequence.
+
+    Immediately after a ramp is started the controller can still report the
+    stable status (200) left over from the previous setpoint, so polling for
+    stability straight away would return at the old value. This helper waits
+    until the controller reports a non-stable status (210 initializing or 220
+    ramping), which marks the new sequence as actually running.
+
+    Args:
+        stable: Callable returning True while the controller reports status 200.
+        settle_timeout: Maximum time to wait in seconds.
+        check_interval: Time between status checks in seconds.
+
+    Returns:
+        True if the controller left the stable status within ``settle_timeout``,
+        False if it kept reporting a stable status (the setpoint was most likely
+        already reached).
+    """
+    start_time = time.time()
+    while time.time() - start_time < settle_timeout:
+        if not stable():
+            return True
+        time.sleep(check_interval)
+    return False
+
+
 class ADRRampValidator(Validator[numbertypes]):
     """
     Requires a number of type int, float, numpy.integer or numpy.floating.
@@ -291,7 +323,12 @@ class TemperatureChannel(InstrumentChannel):
             timeout = self.timeout()
             self._wait_for_temperature(timeout=timeout, check_interval=1.0)
 
-    def _wait_for_temperature(self, timeout: float = 3600.0, check_interval: float = 1.0) -> None:
+    def _wait_for_temperature(
+        self,
+        timeout: float = 3600.0,
+        check_interval: float = 1.0,
+        settle_timeout: float = 10.0,
+    ) -> None:
         """
         Waits for the temperature controller to reach a stable state.
 
@@ -301,10 +338,21 @@ class TemperatureChannel(InstrumentChannel):
         Args:
             timeout: Maximum time to wait in seconds (default: 3600s = 1 hour).
             check_interval: Time between status checks in seconds (default: 1.0s).
+            settle_timeout: Maximum time to wait for the controller to leave the
+                stable status (200) before assuming the setpoint was already
+                reached (default: 10.0s).
 
         Raises:
             TimeoutError: If the temperature does not stabilize within the timeout period.
         """
+        if not _wait_until_started(self.stable, settle_timeout, check_interval):
+            log.info(
+                f"Temperature controller still reports a stable status after "
+                f"{settle_timeout} s; assuming the setpoint was already reached. "
+                f"Status: {self.status()}"
+            )
+            return
+
         start_time = time.time()
 
         while True:
@@ -323,7 +371,12 @@ class TemperatureChannel(InstrumentChannel):
             time.sleep(check_interval)
 
 
-    def wait_for_stable(self, timeout: Optional[float] = None, check_interval: float = 1.0) -> None:
+    def wait_for_stable(
+        self,
+        timeout: Optional[float] = None,
+        check_interval: float = 1.0,
+        settle_timeout: float = 10.0,
+    ) -> None:
         """
         Manually wait for the temperature to stabilize.
 
@@ -333,13 +386,20 @@ class TemperatureChannel(InstrumentChannel):
         Args:
             timeout: Maximum time to wait in seconds. If None, uses the timeout parameter value.
             check_interval: Time between status checks in seconds (default: 1.0s).
+            settle_timeout: Maximum time to wait for the controller to leave the
+                stable status (200) before assuming the setpoint was already
+                reached (default: 10.0s).
 
         Raises:
             TimeoutError: If the temperature does not stabilize within the timeout period.
         """
         if timeout is None:
             timeout = float(self.timeout())
-        self._wait_for_temperature(timeout=timeout, check_interval=check_interval)
+        self._wait_for_temperature(
+            timeout=timeout,
+            check_interval=check_interval,
+            settle_timeout=settle_timeout,
+        )
 
     def recharge_adr(self) -> None:
         """
@@ -486,7 +546,12 @@ class MagnetChannel(InstrumentChannel):
         else:
             return self.controller
 
-    def _wait_for_field(self, timeout: float = 3600.0, check_interval: float = 1.0) -> None:
+    def _wait_for_field(
+        self,
+        timeout: float = 3600.0,
+        check_interval: float = 1.0,
+        settle_timeout: float = 10.0,
+    ) -> None:
         """
         Waits for the field controller to reach a stable state.
 
@@ -496,10 +561,21 @@ class MagnetChannel(InstrumentChannel):
         Args:
             timeout: Maximum time to wait in seconds (default: 3600s = 1 hour).
             check_interval: Time between status checks in seconds (default: 1.0s).
+            settle_timeout: Maximum time to wait for the controller to leave the
+                stable status (200) before assuming the setpoint was already
+                reached (default: 10.0s).
 
         Raises:
             TimeoutError: If the field does not stabilize within the timeout period.
         """
+        if not _wait_until_started(self.stable, settle_timeout, check_interval):
+            log.info(
+                f"Field controller still reports a stable status after "
+                f"{settle_timeout} s; assuming the setpoint was already reached. "
+                f"Status: {self.status()}"
+            )
+            return
+
         start_time = time.time()
 
         while True:
@@ -518,7 +594,12 @@ class MagnetChannel(InstrumentChannel):
             time.sleep(check_interval)
 
 
-    def wait_for_stable(self, timeout: Optional[float] = None, check_interval: float = 1.0) -> None:
+    def wait_for_stable(
+        self,
+        timeout: Optional[float] = None,
+        check_interval: float = 1.0,
+        settle_timeout: float = 10.0,
+    ) -> None:
         """
         Manually wait for the field to stabilize.
 
@@ -528,13 +609,20 @@ class MagnetChannel(InstrumentChannel):
         Args:
             timeout: Maximum time to wait in seconds. If None, uses the timeout parameter value.
             check_interval: Time between status checks in seconds (default: 1.0s).
+            settle_timeout: Maximum time to wait for the controller to leave the
+                stable status (200) before assuming the setpoint was already
+                reached (default: 10.0s).
 
         Raises:
             TimeoutError: If the field does not stabilize within the timeout period.
         """
         if timeout is None:
             timeout = float(self.timeout())
-        self._wait_for_field(timeout=timeout, check_interval=check_interval)
+        self._wait_for_field(
+            timeout=timeout,
+            check_interval=check_interval,
+            settle_timeout=settle_timeout,
+        )
 
 
 class LTypeRapid(Instrument):
