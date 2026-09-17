@@ -123,3 +123,4 @@ src/qcodes_contrib_drivers/drivers/QphoX/CryoSwitchController/states_empty.json
 # A poetry.lock here comes from a local venv and pins dependencies the
 # project does not declare.
 poetry.lock
+uv.lock
