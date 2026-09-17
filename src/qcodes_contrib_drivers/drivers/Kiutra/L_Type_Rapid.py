@@ -6,7 +6,7 @@ import time
 import numpy as np
 from qcodes.instrument import Instrument, InstrumentBaseKWArgs, InstrumentChannel
 from qcodes.parameters import ManualParameter, Parameter
-from qcodes.validators import Enum, Numbers, Validator
+from qcodes.validators import Bool, Enum, Numbers, Validator
 from kiutra_api.controller_interfaces import (  # type: ignore
     TemperatureControl,
     MagnetControl,
@@ -152,6 +152,25 @@ class TemperatureChannel(InstrumentChannel):
     """
     QCoDeS driver for a temperature channel of the Kiutra L-Type Rapid cryostat.
 
+    Setting ``temperature`` starts a ramp. By default the setter blocks until the
+    controller reports a stable status, so that a measurement taken straight
+    after the set is really taken at the requested temperature. This follows the
+    convention of the QCoDeS AMI430 magnet driver, whose ``block_during_ramp``
+    parameter also defaults to True.
+
+    Two parameters control this:
+
+    * ``blocking`` (default True) -- whether the temperature setter waits at all.
+      Set it to False for fire-and-forget ramps, then call
+      :meth:`wait_for_stable` when you want to wait.
+    * ``timeout`` (default 3600 s) -- how long the setter waits before giving up.
+
+    .. warning::
+       With ``blocking`` set to True a temperature that never stabilizes raises
+       ``TimeoutError`` from inside the setter. In a sweep this aborts the whole
+       measurement, so pick a ``timeout`` that suits the slowest step of the
+       sweep, or set ``blocking`` to False and wait explicitly.
+
     Args:
         parent: The parent instrument (LTypeRapid).
         name: The name of the temperature channel.
@@ -216,7 +235,7 @@ class TemperatureChannel(InstrumentChannel):
             parameter_class=ManualParameter,
             label="Blocking mode for temperature setting",
             initial_value=True,
-            vals=Enum(True, False),
+            vals=Bool(),
             docstring="If True, temperature setter waits for stabilization. If False, returns immediately.",
         )
         """Parameter blocking"""
@@ -417,6 +436,25 @@ class MagnetChannel(InstrumentChannel):
     """
     QCoDeS driver for a magnet channel of the Kiutra L-Type Rapid cryostat.
 
+    Setting ``field`` starts a ramp. By default the setter blocks until the
+    controller reports a stable status, so that a measurement taken straight
+    after the set is really taken at the requested field. This follows the
+    convention of the QCoDeS AMI430 magnet driver, whose ``block_during_ramp``
+    parameter also defaults to True.
+
+    Two parameters control this:
+
+    * ``blocking`` (default True) -- whether the field setter waits at all.
+      Set it to False for fire-and-forget ramps, then call
+      :meth:`wait_for_stable` when you want to wait.
+    * ``timeout`` (default 3600 s) -- how long the setter waits before giving up.
+
+    .. warning::
+       With ``blocking`` set to True a field that never stabilizes raises
+       ``TimeoutError`` from inside the setter. In a sweep this aborts the whole
+       measurement, so pick a ``timeout`` that suits the slowest step of the
+       sweep, or set ``blocking`` to False and wait explicitly.
+
     Args:
         parent: The parent instrument (LTypeRapid).
         name: The name of the magnet channel.
@@ -486,7 +524,7 @@ class MagnetChannel(InstrumentChannel):
             parameter_class=ManualParameter,
             label="Blocking mode for field setting",
             initial_value=True,
-            vals=Enum(True, False),
+            vals=Bool(),
             docstring="If True, field setter waits for stabilization. If False, returns immediately.",
         )
         """Parameter blocking"""
