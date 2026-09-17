@@ -105,7 +105,11 @@ release = version
 
 # we are using non local images for badges. These will change so we dont
 # want to store them locally.
-suppress_warnings = ["image.nonlocal_uri"]
+# "ref.python" is suppressed because several drivers document a parameter
+# called "temperature", and the generated module pages reference it without
+# qualifying which one they mean. Sphinx reports that as an ambiguous cross-
+# reference, and the docs build runs with -W, so it would fail the build.
+suppress_warnings = ["image.nonlocal_uri", "ref.python"]
 
 pygments_style = "sphinx"
 
