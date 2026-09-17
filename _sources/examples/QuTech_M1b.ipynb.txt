@@ -1,0 +1,436 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "f9283a48",
+   "metadata": {},
+   "source": [
+    "# QCoDeS Example with QuTech M1b Preamplifier"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "736f5a04",
+   "metadata": {},
+   "source": [
+    "This notebook explains how the QuTech M1b current preamplifier module works and shows the main features of its QCoDeS driver."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "7fc379ab",
+   "metadata": {},
+   "source": [
+    "The M1b is a low-noise current-to-voltage converter (transimpedance amplifier) designed for use in the IVVI rack system. It converts small currents (nA to pA range) into measurable voltages.\n",
+    "\n",
+    "**Documentation:** https://qtwork.tudelft.nl/~schouten/ivvi/doc-mod/docm1b.htm"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "f728c618",
+   "metadata": {},
+   "source": [
+    "## Virtual Driver"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "d769a1bb",
+   "metadata": {},
+   "source": [
+    "This is a **virtual driver** - it does not communicate with the physical instrument. It is the user's responsibility to manually set the physical instrument to match the driver settings. The driver helps track settings and calculate derived quantities like total gain and input resistance."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "1e9b3ca8",
+   "metadata": {},
+   "source": [
+    "## Quick Start: Measurement Example"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "124460c4",
+   "metadata": {},
+   "source": [
+    "### Import Required Libraries"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 42,
+   "id": "96a75414",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from qcodes_contrib_drivers.drivers.QuTech.M1b import M1b, CurrentParameter"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "64e05f17",
+   "metadata": {},
+   "source": [
+    "### Create an M1b Instance"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 43,
+   "id": "b895e899",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "preamp = M1b(\"m1b_preamp\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "19491614",
+   "metadata": {},
+   "source": [
+    "### Setting Module Slot\n",
+    "\n",
+    "The M1b module can be placed in slot Ma (top, iso-out 1) or Mb (bottom, iso-out 2):"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 44,
+   "id": "8e3eb86c",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "preamp.slot(\"Ma\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "8e563861",
+   "metadata": {},
+   "source": [
+    "### Setting Transimpedance Gain\n",
+    "\n",
+    "The main gain setting converts current to voltage. Choose from: \"1M\", \"10M\", \"100M\", \"1G\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 45,
+   "id": "c8194639",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Set gain to 100 MΩ (100 MV/A)\n",
+    "preamp.gain(\"100M\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "67decdea",
+   "metadata": {},
+   "source": [
+    "### Setting Postgain\n",
+    "\n",
+    "The postgain multiplies the output. Options: \"x1\", \"x100ac\", \"x100dc\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 46,
+   "id": "d89502ff",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Set to x1 for DC measurements (no postgain)\n",
+    "preamp.postgain(\"x1\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "e42d7937",
+   "metadata": {},
+   "source": [
+    "### Using CurrentParameter for Measurements\n",
+    "\n",
+    "The `CurrentParameter` class automatically converts voltage measurements to current using the M1b's total gain."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 47,
+   "id": "129489ed",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from qcodes.instrument_drivers.mock_instruments import DummyInstrument\n",
+    "\n",
+    "# Create a mock DMM (digital multimeter) that simulates measuring the M1b output\n",
+    "# In a real setup, this would be an actual DMM like Keysight 34465A\n",
+    "dmm = DummyInstrument(name=\"dmm\", gates=[\"voltage\"])\n",
+    "\n",
+    "# Create CurrentParameter that links voltage measurement to M1b\n",
+    "current_param = CurrentParameter(\n",
+    "    measured_param=dmm.voltage,  # Use the DMM voltage parameter\n",
+    "    current_amplifier_instrument=preamp,\n",
+    "    name=\"current\"\n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 48,
+   "id": "ae1aa064",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Gate voltage sweep with current measurement:\n",
+      "\n",
+      "Gate Voltage (V) | M1b Output (mV) | Current (nA)\n",
+      "-------------------------------------------------------\n",
+      "         -0.100 |             0.0 |        0.000\n",
+      "         -0.050 |            25.0 |        0.250\n",
+      "         +0.000 |            50.0 |        0.500\n",
+      "         +0.050 |            75.0 |        0.750\n",
+      "         +0.100 |           100.0 |        1.000\n",
+      "\n",
+      "Measurement complete!\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Create a mock gate voltage source\n",
+    "gate_dac = DummyInstrument(name=\"gate_dac\", gates=[\"voltage\"])\n",
+    "\n",
+    "# Simulate a simple I-V sweep\n",
+    "print(\"Gate voltage sweep with current measurement:\")\n",
+    "print(\"\\nGate Voltage (V) | M1b Output (mV) | Current (nA)\")\n",
+    "print(\"-\" * 55)\n",
+    "\n",
+    "for v_gate in [-0.1, -0.05, 0.0, 0.05, 0.1]:\n",
+    "    gate_dac.voltage(v_gate)\n",
+    "    \n",
+    "    # Simulate M1b output voltage that varies with gate voltage\n",
+    "    # In reality, this would be measured by your DMM\n",
+    "    dmm.voltage(0.05 + 0.5 * v_gate)  # Simulated response\n",
+    "    \n",
+    "    # Get current measurement (automatically calculated from voltage)\n",
+    "    voltage_raw, current = current_param.get()\n",
+    "    \n",
+    "    print(f\"{v_gate:+15.3f} | {voltage_raw*1e3:15.1f} | {current*1e9:12.3f}\")\n",
+    "\n",
+    "print(\"\\nMeasurement complete!\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "62dab5ba",
+   "metadata": {},
+   "source": [
+    "### Additional parameters"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 49,
+   "id": "ad4ce8cb",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Mute the output\n",
+    "preamp.muted(True)\n",
+    "\n",
+    "# Unmute\n",
+    "preamp.muted(False)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "42696f40",
+   "metadata": {},
+   "source": [
+    "### Output Controls"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 50,
+   "id": "90dde619",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Reference to ground (default)\n",
+    "preamp.reference(\"ground\")\n",
+    "\n",
+    "# Reference to external ref-in (ideally a cold ground for cryogenic measurements)\n",
+    "preamp.reference(\"ref-in\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "e543605d",
+   "metadata": {},
+   "source": [
+    "### Reference Settings"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 51,
+   "id": "211854a8",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Input resistance: 1.02e+05 Ω\n",
+      "Input resistance: 102.0 kΩ\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Low Rin mode - lower input resistance, faster response\n",
+    "preamp.input_resistance_setting(\"Low Rin\")\n",
+    "\n",
+    "# Low Noise mode - higher input resistance, lower noise (default)\n",
+    "preamp.input_resistance_setting(\"Low Noise\")\n",
+    "\n",
+    "# Get calculated input resistance\n",
+    "rin = preamp.input_resistance()\n",
+    "print(f\"Input resistance: {rin:.2e} Ω\")\n",
+    "print(f\"Input resistance: {rin/1e3:.1f} kΩ\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "0a24a562",
+   "metadata": {},
+   "source": [
+    "### Input Resistance Settings"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 52,
+   "id": "ed9357e0",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Total gain: 1.00e+08 V/A\n",
+      "Total gain: 0 GV/A\n"
+     ]
+    }
+   ],
+   "source": [
+    "# The total gain is the product of the base gain and postgain\n",
+    "preamp.postgain(\"x1\")  # Reset to x1 for this example\n",
+    "total_gain = preamp.total_gain()\n",
+    "print(f\"Total gain: {total_gain:.2e} V/A\")\n",
+    "print(f\"Total gain: {total_gain/1e9:.0f} GV/A\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "1a5adf03",
+   "metadata": {},
+   "source": [
+    "### Total Gain Calculation"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 53,
+   "id": "a03e3e15",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# x1: No postgain (direct output)\n",
+    "preamp.postgain(\"x1\")\n",
+    "\n",
+    "# x100ac: AC-coupled 100x postgain (useful for noise measurements with DC offset)\n",
+    "preamp.postgain(\"x100ac\")\n",
+    "\n",
+    "# x100dc: DC-coupled 100x postgain (maximum total gain: 100 GV/A)\n",
+    "preamp.postgain(\"x100dc\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "f492fd99",
+   "metadata": {},
+   "source": [
+    "## Important Notes"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "a408ae6e",
+   "metadata": {},
+   "source": [
+    "1. **Virtual Driver**: This driver does not communicate with the hardware. Always ensure the physical M1b settings match the driver settings.\n",
+    "\n",
+    "2. **Gain Settings**: Choose gain to avoid saturation (±10V output limit) while maintaining good signal-to-noise ratio.\n",
+    "\n",
+    "3. **Bandwidth**: Higher gains have lower bandwidth. Check M1b documentation for bandwidth specifications.\n",
+    "\n",
+    "4. **Input Protection**: The M1b has input protection, but avoid exceeding specified current ranges.\n",
+    "\n",
+    "5. **Reference**: Use external ref-in connected to a cold ground for lowest noise in cryogenic measurements.\n",
+    "\n",
+    "6. **AC Coupling**: When using x100ac postgain, the AC coupling has a cutoff frequency - check documentation for your measurement frequency range."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "470da3a3",
+   "metadata": {},
+   "source": [
+    "## Cleanup"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 54,
+   "id": "e37fc7d6",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Clean up mock instruments\n",
+    "gate_dac.close()\n",
+    "dmm.close()\n",
+    "# Close the instrument when done\n",
+    "preamp.close()"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "qcodes-contrib-drivers-py3.13 (3.13.7)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.13.7"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
