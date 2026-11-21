@@ -752,7 +752,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
                 Port("control", "Analog modulation control", "signal"),
             ),
             knobs=(),  # page not found
-            doc_url=f"{_DOC}docs5j.htm",
+            doc_url=f"{_DOC}index-mod.htm",  # its own page docs5j.htm is not found
             driver=f"{_PKG}.S5j.S5j",
         ),
         ModuleSpec(
@@ -1129,7 +1129,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
             label="Current source and voltage measurement",
             ports=_IV_PORTS,  # ports inferred from the index row, unverified
             knobs=(),  # page not found
-            doc_url=f"{_DOC}docivb.htm",
+            doc_url=f"{_DOC}index-mod.htm",  # its own page docivb.htm is not found
             driver=f"{_PKG}.IVb.IVb",
         ),
         ModuleSpec(
@@ -1308,7 +1308,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
                 Port("out", "out", "drive"),
             ),  # ports inferred from the index row, unverified
             knobs=(),  # page not found
-            doc_url=f"{_DOC}docp2a.htm",
+            doc_url=f"{_DOC}index-mod.htm",  # its own page docp2a.htm is not found
             driver=f"{_PKG}.P2a.P2a",
         ),
         ModuleSpec(
@@ -1352,7 +1352,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
                 Port("out", "out", "signal"),
             ),
             knobs=(),  # page not found
-            doc_url=f"{_DOC}docp3.htm",
+            doc_url=f"{_DOC}index-mod.htm",  # its own page docp3.htm is not found
             driver=f"{_PKG}.P3.P3",
         ),
         ModuleSpec(
@@ -1367,7 +1367,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
                 Port("q_out", "Q out", "signal"),
             ),
             knobs=(),  # page not found
-            doc_url=f"{_DOC}docf1a.htm",
+            doc_url=f"{_DOC}index-mod.htm",  # its own page docf1a.htm is not found
             driver=f"{_PKG}.F1a.F1a",
         ),
         ModuleSpec(
@@ -1382,7 +1382,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
                 Port("rf_out", "RF out", "signal"),
             ),
             knobs=(),  # page not found
-            doc_url=f"{_DOC}docf1b.htm",
+            doc_url=f"{_DOC}index-mod.htm",  # its own page docf1b.htm is not found
             driver=f"{_PKG}.F1b.F1b",
         ),
         ModuleSpec(
