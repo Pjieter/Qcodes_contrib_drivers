@@ -156,7 +156,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
                     "Mute status",
                     (False, True),
                     False,
-                    doc="Records whether the output is muted.",
+                    doc="Records whether the output is muted. Defaults to not muted.",
                 ),
             ),
             doc_url=f"{_DOC}docm1b.htm",
@@ -438,7 +438,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
                     "Mute",
                     (False, True),
                     False,
-                    doc="Records whether the output is muted.",
+                    doc="Records whether the output is muted. Defaults to not muted.",
                 ),
                 Knob(
                     "output_mode",
@@ -534,7 +534,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
             slot_kind="source",
             label="Ultralow-noise voltage and current source",
             ports=(Port("out", "out", "drive"),),
-            knobs=(),  # page lists no switches
+            knobs=(),  # page names decade switches but shows no positions (photo 404)
             doc_url=f"{_DOC}docs4e.htm",
             driver=f"{_PKG}.S4e.S4e",
         ),
@@ -854,7 +854,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
                     "Mute",
                     (False, True),
                     False,
-                    doc="Records whether the output is muted.",
+                    doc="Records whether the output is muted. Defaults to not muted.",
                 ),
             ),
             doc_url=f"{_DOC}docm1h.htm",
@@ -894,8 +894,8 @@ CATALOGUE: dict[str, ModuleSpec] = {
                 Knob(
                     "postgain",
                     "Postgain",
-                    ("x100", "x10", "x1"),
-                    "x100",
+                    ("x1", "x10", "x100"),
+                    "x1",
                     "V/V",
                     "Sets the postamplifier gain. Defaults to the first listed position.",
                 ),
@@ -1008,8 +1008,8 @@ CATALOGUE: dict[str, ModuleSpec] = {
                 Knob(
                     "source_gain",
                     "Source gain",
-                    ("100u", "1m", "10m", "100m"),
-                    "100u",
+                    ("1m", "10m", "100m"),
+                    "1m",
                     "V/V",
                     "Sets the voltage source gain. Defaults to the first listed position.",
                 ),
@@ -1048,8 +1048,8 @@ CATALOGUE: dict[str, ModuleSpec] = {
                 Knob(
                     "source_gain",
                     "Source gain",
-                    ("100u", "1m", "10m", "100m"),
-                    "100u",
+                    ("1m", "10m", "100m"),
+                    "1m",
                     "V/V",
                     "Sets the voltage source gain. Defaults to the first listed position.",
                 ),
@@ -1112,8 +1112,8 @@ CATALOGUE: dict[str, ModuleSpec] = {
                 Knob(
                     "source_gain",
                     "Source gain",
-                    ("100u", "1m", "10m", "100m"),
-                    "100u",
+                    ("1m", "10m", "100m"),
+                    "1m",
                     "V/V",
                     "Sets the voltage source gain. Defaults to the first listed position.",
                 ),
@@ -1218,7 +1218,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
                     "Mute",
                     (False, True),
                     False,
-                    doc="Records whether the output is muted.",
+                    doc="Records whether the output is muted. Defaults to not muted.",
                 ),
                 Knob(
                     "gain",
@@ -1258,7 +1258,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
                     "Mute",
                     (False, True),
                     False,
-                    doc="Records whether the output is muted.",
+                    doc="Records whether the output is muted. Defaults to not muted.",
                 ),
                 Knob(
                     "gain",
@@ -1286,8 +1286,8 @@ CATALOGUE: dict[str, ModuleSpec] = {
                 Knob(
                     "source_gain",
                     "Source gain",
-                    ("4", "0.04"),
-                    "4",
+                    ("0.04", "4"),
+                    "0.04",
                     "V/V",
                     "Sets the voltage source gain. Defaults to the first listed position.",
                 ),
