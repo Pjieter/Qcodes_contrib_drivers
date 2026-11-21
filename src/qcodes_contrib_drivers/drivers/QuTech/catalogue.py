@@ -691,5 +691,131 @@ CATALOGUE: dict[str, ModuleSpec] = {
             doc_url=f"{_DOC}docs5j.htm",
             driver=f"{_PKG}.S5j.S5j",
         ),
+        ModuleSpec(
+            type="M2d",
+            kind="measure",
+            slot_kind="measure",
+            label="Low-noise differential voltage preamplifier",
+            ports=_DIFFERENTIAL_INPUT,
+            knobs=(
+                Knob(
+                    "gain",
+                    "AC gain",
+                    ("100", "1k", "10k", "100k"),
+                    "100",
+                    "V/V",
+                    "Sets the AC gain. DC gain stays at 100 V/V. Defaults to the first listed position.",
+                ),
+            ),
+            doc_url=f"{_DOC}docm2d.htm",
+            driver=f"{_PKG}.M2d.M2d",
+        ),
+        ModuleSpec(
+            type="M2e",
+            kind="measure",
+            slot_kind="measure",
+            label="Voltage preamplifier with zoom and comparator",
+            ports=(
+                Port("in+", "in +", "sense"),
+                Port("in-", "in -", "sense"),
+                Port("opto_out", "Optical out", "signal"),
+            ),
+            knobs=(
+                Knob(
+                    "gain",
+                    "Gain",
+                    ("1", "10", "100", "1k", "10k"),
+                    "1",
+                    "V/V",
+                    "Sets the voltage gain. Defaults to the first listed position.",
+                ),
+                Knob(
+                    "mode",
+                    "Mode",
+                    ("compare", "amp", "zoom"),
+                    "compare",
+                    doc="Selects comparison, amplification or 10x zoom. Defaults to the first listed position.",
+                ),
+            ),
+            doc_url=f"{_DOC}docm2e.htm",
+            driver=f"{_PKG}.M2e.M2e",
+        ),
+        ModuleSpec(
+            type="M2c",
+            kind="measure",
+            slot_kind="measure",
+            label="High-impedance differential voltage preamplifier",
+            ports=(
+                Port("in+", "in +", "sense"),
+                Port("in-", "in -", "sense"),
+                Port("guard+", "Guard +", "signal"),
+                Port("guard-", "Guard -", "signal"),
+            ),
+            knobs=(
+                Knob(
+                    "gain",
+                    "Gain",
+                    ("1", "10", "100"),
+                    "1",
+                    "V/V",
+                    "Sets the voltage gain. Defaults to the first listed position.",
+                ),
+            ),
+            doc_url=f"{_DOC}docm2c.htm",
+            driver=f"{_PKG}.M2c.M2c",
+        ),
+        ModuleSpec(
+            type="M2f",
+            kind="measure",
+            slot_kind="measure",
+            label="Fast single-ended voltage preamplifier",
+            ports=(
+                Port("in", "in", "sense"),
+                Port("fibre_out", "Fibre out", "signal"),
+            ),
+            knobs=(),  # page lists no switches
+            doc_url=f"{_DOC}docm2f.htm",
+            driver=f"{_PKG}.M2f.M2f",
+        ),
+        ModuleSpec(
+            type="M2g",
+            kind="measure",
+            slot_kind="measure",
+            label="Fibre-isolated voltage postamplifier",
+            ports=(
+                Port("in", "in", "sense"),
+                Port("fibre_out", "Fibre out", "signal"),
+            ),
+            knobs=(),  # page lists no switches
+            doc_url=f"{_DOC}docm2g.htm",
+            driver=f"{_PKG}.M2g.M2g",
+        ),
+        ModuleSpec(
+            type="M2i",
+            kind="measure",
+            slot_kind="measure",
+            label="Low-noise differential voltage preamplifier",
+            ports=_DIFFERENTIAL_INPUT,
+            knobs=(),  # page lists no switches
+            doc_url=f"{_DOC}docm2i.htm",
+            driver=f"{_PKG}.M2i.M2i",
+        ),
+        ModuleSpec(
+            type="M2k",
+            kind="measure",
+            slot_kind="measure",
+            label="Dual AWG buffer",
+            ports=(
+                Port("inA+", "In A +", "signal"),
+                Port("inA-", "In A -", "signal"),
+                Port("inB+", "In B +", "signal"),
+                Port("inB-", "In B -", "signal"),
+                Port("outA", "Out A", "signal"),
+                Port("outB", "Out B", "signal"),
+            ),
+            knobs=(),  # page lists no switches
+            doc_url=f"{_DOC}docm2k.htm",
+            driver=f"{_PKG}.M2k.M2k",
+        ),
     ]
 }
