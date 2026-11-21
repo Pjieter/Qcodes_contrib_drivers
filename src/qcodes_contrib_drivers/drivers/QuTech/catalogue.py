@@ -38,7 +38,10 @@ class Port:
 
 @dataclass(frozen=True)
 class ModuleSpec:
-    """Catalogue metadata for a virtual IVVI module."""
+    """Catalogue metadata for a virtual IVVI module.
+
+    ports_verified is False when the ports are inferred from the module index.
+    """
 
     type: str
     kind: Literal["source", "measure", "combined", "misc"]
@@ -48,6 +51,7 @@ class ModuleSpec:
     knobs: tuple[Knob, ...]
     doc_url: str
     driver: str
+    ports_verified: bool = True
 
 
 def slots_for(slot_kind: str) -> tuple[str, ...]:
@@ -136,7 +140,13 @@ CATALOGUE: dict[str, ModuleSpec] = {
             kind="source",
             slot_kind="source",
             label="Current and voltage source",
-            ports=(Port("out+", "out +", "drive"), Port("out-", "out -", "drive")),
+            ports=(
+                Port("out+", "out +", "drive"),
+                Port("out-", "out -", "drive"),
+                Port("mon_v4", "V(4)", "signal"),
+                Port("mon_v2", "V(2)", "signal"),
+                Port("mon_i4", "I(4)", "signal"),
+            ),
             knobs=(
                 Knob(
                     "source_mode",
@@ -299,7 +309,8 @@ CATALOGUE: dict[str, ModuleSpec] = {
                     doc="Selects DC or AC coupling.",
                 ),
             ),
-            doc_url=f"{_DOC}docm2q.htm",
+            # M2q is not on the module index; its own page is not online
+            doc_url=f"{_DOC}index-mod.htm",
             driver=f"{_PKG}.M2q.M2q",
         ),
         ModuleSpec(
@@ -333,7 +344,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
             kind="source",
             slot_kind="source",
             label="Isolated voltage and current source",
-            ports=(Port("out+", "out +", "drive"), Port("out-", "out −", "drive")),
+            ports=(Port("out+", "out +", "drive"), Port("out-", "out -", "drive")),
             knobs=(
                 Knob(
                     "output_mode",
@@ -351,7 +362,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
             kind="source",
             slot_kind="source",
             label="Isolated voltage source",
-            ports=(Port("out+", "out +", "drive"), Port("out-", "out −", "drive")),
+            ports=(Port("out+", "out +", "drive"), Port("out-", "out -", "drive")),
             knobs=(
                 Knob(
                     "gain",
@@ -449,7 +460,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
         ModuleSpec(
             type="P1a",
             kind="source",
-            slot_kind="source",
+            slot_kind="any",
             label="Potentiometer and backplane adapter",
             ports=(
                 Port("potm_v", "Potentiometer voltage", "drive"),
@@ -754,6 +765,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
             knobs=(),  # page not found
             doc_url=f"{_DOC}index-mod.htm",  # its own page docs5j.htm is not found
             driver=f"{_PKG}.S5j.S5j",
+            ports_verified=False,
         ),
         ModuleSpec(
             type="M2d",
@@ -858,7 +870,9 @@ CATALOGUE: dict[str, ModuleSpec] = {
             slot_kind="measure",
             label="Low-noise differential voltage preamplifier",
             ports=_DIFFERENTIAL_INPUT,
-            knobs=(),  # page lists no switches
+            # page says the documentation is not finished and its photo is not online;
+            # the index lists a gain of 100 to 10E4, so the gain switch is unverified, not absent
+            knobs=(),
             doc_url=f"{_DOC}docm2i.htm",
             driver=f"{_PKG}.M2i.M2i",
         ),
@@ -1131,6 +1145,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
             knobs=(),  # page not found
             doc_url=f"{_DOC}index-mod.htm",  # its own page docivb.htm is not found
             driver=f"{_PKG}.IVb.IVb",
+            ports_verified=False,
         ),
         ModuleSpec(
             type="IVc",
@@ -1305,11 +1320,12 @@ CATALOGUE: dict[str, ModuleSpec] = {
             slot_kind="any",
             label="Cryogenic preamplifier supply",
             ports=(
-                Port("out", "out", "drive"),
+                Port("out", "out", "signal"),
             ),  # ports inferred from the index row, unverified
             knobs=(),  # page not found
             doc_url=f"{_DOC}index-mod.htm",  # its own page docp2a.htm is not found
             driver=f"{_PKG}.P2a.P2a",
+            ports_verified=False,
         ),
         ModuleSpec(
             type="P2b",
@@ -1317,7 +1333,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
             slot_kind="any",
             label="Cryogenic preamplifier supply",
             ports=(
-                Port("out", "out", "drive"),
+                Port("out", "out", "signal"),
                 Port("vmon", "Voltage monitor", "signal"),
                 Port("imon", "Current monitor", "signal"),
             ),
@@ -1331,8 +1347,8 @@ CATALOGUE: dict[str, ModuleSpec] = {
             slot_kind="any",
             label="Dual cryogenic preamplifier supply",
             ports=(
-                Port("outA", "out A", "drive"),
-                Port("outB", "out B", "drive"),
+                Port("outA", "out A", "signal"),
+                Port("outB", "out B", "signal"),
                 Port("vmonA", "Voltage monitor A", "signal"),
                 Port("imonA", "Current monitor A", "signal"),
                 Port("vmonB", "Voltage monitor B", "signal"),
@@ -1354,6 +1370,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
             knobs=(),  # page not found
             doc_url=f"{_DOC}index-mod.htm",  # its own page docp3.htm is not found
             driver=f"{_PKG}.P3.P3",
+            ports_verified=False,
         ),
         ModuleSpec(
             type="F1a",
@@ -1369,6 +1386,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
             knobs=(),  # page not found
             doc_url=f"{_DOC}index-mod.htm",  # its own page docf1a.htm is not found
             driver=f"{_PKG}.F1a.F1a",
+            ports_verified=False,
         ),
         ModuleSpec(
             type="F1b",
@@ -1384,6 +1402,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
             knobs=(),  # page not found
             doc_url=f"{_DOC}index-mod.htm",  # its own page docf1b.htm is not found
             driver=f"{_PKG}.F1b.F1b",
+            ports_verified=False,
         ),
         ModuleSpec(
             type="F1c",
