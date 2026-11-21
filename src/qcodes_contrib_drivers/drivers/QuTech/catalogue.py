@@ -538,5 +538,158 @@ CATALOGUE: dict[str, ModuleSpec] = {
             doc_url=f"{_DOC}docs4e.htm",
             driver=f"{_PKG}.S4e.S4e",
         ),
+        ModuleSpec(
+            type="S5a",
+            kind="source",
+            slot_kind="source",
+            label="Six-level pulse generator",
+            ports=(
+                Port("out_q", "Q out", "drive"),
+                Port("out_i", "I out", "drive"),
+                Port("outA", "Amplitude out A", "drive"),
+                Port("outB", "Amplitude out B", "drive"),
+                Port("trigger_in", "Electrical trigger in", "signal"),
+                Port("fibre_in", "Fibre trigger in", "signal"),
+            ),
+            knobs=(),  # page lists no switches
+            doc_url=f"{_DOC}docs5a.htm",
+            driver=f"{_PKG}.S5a.S5a",
+        ),
+        ModuleSpec(
+            type="S5b",
+            kind="source",
+            slot_kind="source",
+            label="Dual fibre pulse receiver",
+            ports=(
+                Port("outA", "out A", "drive"),
+                Port("outB", "out B", "drive"),
+                Port("fibre_in_a", "Ch 1 fibre in", "signal"),
+                Port("fibre_in_b", "Ch 2 fibre in", "signal"),
+                Port("offset_in_a", "Ch 1 offset in", "signal"),
+                Port("offset_in_b", "Ch 2 offset in", "signal"),
+            ),
+            knobs=(
+                Knob(
+                    "offset_control",
+                    "Offset control",
+                    ("ch1", "ch1+ch2", "off"),
+                    "ch1",
+                    doc="Selects the channels that use front-panel offset control. Defaults to the first listed position.",
+                ),
+            ),
+            doc_url=f"{_DOC}docs5b.htm",
+            driver=f"{_PKG}.S5b.S5b",
+        ),
+        ModuleSpec(
+            type="S5c",
+            kind="source",
+            slot_kind="source",
+            label="Four-level write-read pulser",
+            ports=(
+                Port("out", "out", "drive"),
+                Port("fibre_in", "Fibre in", "signal"),
+            ),
+            knobs=(),  # page lists no switches
+            doc_url=f"{_DOC}docs5c.htm",
+            driver=f"{_PKG}.S5c.S5c",
+        ),
+        ModuleSpec(
+            type="S5d",
+            kind="source",
+            slot_kind="source",
+            label="Fast two-level pulser",
+            ports=(
+                Port("out", "out", "drive"),
+                Port("fibre_in", "Fibre in", "signal"),
+                Port("l0", "L0 control", "signal"),
+                Port("l1", "L1 control", "signal"),
+            ),
+            knobs=(),  # page lists no switches
+            doc_url=f"{_DOC}docs5d.htm",
+            driver=f"{_PKG}.S5d.S5d",
+        ),
+        ModuleSpec(
+            type="S5e",
+            kind="source",
+            slot_kind="source",
+            label="Precision eight-level pulser",
+            ports=(
+                Port("out+", "out +", "drive"),
+                Port("out-", "out -", "drive"),
+                Port("fibre_in", "Fibre clock/reset", "signal"),
+                Port("l0", "L0 DAC in", "signal"),
+                Port("l1", "L1 DAC in", "signal"),
+                Port("l2", "L2 DAC in", "signal"),
+                Port("l3", "L3 DAC in", "signal"),
+                Port("l4", "L4 DAC in", "signal"),
+                Port("l5", "L5 DAC in", "signal"),
+                Port("l6", "L6 DAC in", "signal"),
+                Port("l7", "L7 DAC in", "signal"),
+            ),
+            knobs=(),  # page lists no switches
+            doc_url=f"{_DOC}docs5e.htm",
+            driver=f"{_PKG}.S5e.S5e",
+        ),
+        ModuleSpec(
+            type="S5f",
+            kind="source",
+            slot_kind="source",
+            label="Trigger splitter and isolator",
+            ports=(
+                Port("trigger_in", "Electrical trigger in", "signal"),
+                Port("fibre_in", "Fibre trigger in", "signal"),
+                Port("out1", "Trigger out 1", "signal"),
+                Port("out2", "Trigger out 2", "signal"),
+                Port("out3", "Trigger out 3", "signal"),
+                Port("out4", "Trigger out 4", "signal"),
+                Port("out5", "Trigger out 5", "signal"),
+            ),
+            knobs=(),  # page lists no switches
+            doc_url=f"{_DOC}docs5f.htm",
+            driver=f"{_PKG}.S5f.S5f",
+        ),
+        ModuleSpec(
+            type="S5g",
+            kind="source",
+            slot_kind="source",
+            label="Fibre-isolated high-frequency source",
+            ports=(
+                Port("out", "out", "drive"),
+                Port("fibre_in", "Fibre in", "signal"),
+                Port("dc", "DC control", "signal"),
+                Port("vh", "High limit control", "signal"),
+                Port("vl", "Low limit control", "signal"),
+            ),
+            knobs=(),  # page lists no switches
+            doc_url=f"{_DOC}docs5g.htm",
+            driver=f"{_PKG}.S5g.S5g",
+        ),
+        ModuleSpec(
+            type="S5h",
+            kind="source",
+            slot_kind="source",
+            label="High-frequency clamping amplifier",
+            ports=(
+                Port("in", "in", "signal"),
+                Port("out", "out", "drive"),
+            ),
+            knobs=(),  # page lists no switches
+            doc_url=f"{_DOC}docs5h.htm",
+            driver=f"{_PKG}.S5h.S5h",
+        ),
+        ModuleSpec(
+            type="S5j",
+            kind="source",
+            slot_kind="source",
+            label="RF modulator",
+            ports=(
+                Port("in", "in", "signal"),
+                Port("out", "out", "drive"),
+                Port("control", "Analog modulation control", "signal"),
+            ),
+            knobs=(),  # page not found
+            doc_url=f"{_DOC}docs5j.htm",
+            driver=f"{_PKG}.S5j.S5j",
+        ),
     ]
 }
