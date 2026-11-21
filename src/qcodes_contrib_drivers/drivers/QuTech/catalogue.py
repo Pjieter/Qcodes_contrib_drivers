@@ -1563,13 +1563,13 @@ CATALOGUE: dict[str, ModuleSpec] = {
             slot_kind="any",
             label="Dual gate protection resistor",
             ports=tuple(
-                Port(f"{port}_{side}", f"{label} {side}", kind)
+                Port(f"{port.id}_{side}", f"{port.label} {side}", port.kind)
                 for side in ("upper", "lower")
-                for port, label, kind in (
-                    ("gate", "Gate", "gate"),
-                    ("lemo", "LEMO", "signal"),
-                    ("dac_2", "DAC 2", "signal"),
-                    ("dac_4", "DAC 4", "signal"),
+                for port in (
+                    Port("gate", "Gate", "gate"),
+                    Port("lemo", "LEMO", "signal"),
+                    Port("dac_2", "DAC 2", "signal"),
+                    Port("dac_4", "DAC 4", "signal"),
                 )
             ),
             knobs=tuple(
