@@ -8,6 +8,13 @@ from qcodes.validators import Enum
 from qcodes_contrib_drivers.drivers.QuTech.catalogue import CATALOGUE, catalogue_json
 
 KINDS = {"drive", "sense", "current", "gate", "signal"}
+ISSUE_TYPES = """S3b S1d S1h S1f S4c S4d S5a S5b S5c S5d S5e S5f S5g S5h S5j P1a S4m S4f SM1 S4e
+M2m M2b M2d M2e M2c M2f M2g M2i M2k M2q M1b M1h M1g M1r M1c M3m M3a M3c
+VIa VIb VIc VId IVa IVb IVc IVd SM1a U1a U1b P2a P2b P2c P3 F1a F1b F1c F2a A1""".split()
+
+
+def test_every_current_module_is_in_the_catalogue():
+    assert sorted(set(ISSUE_TYPES) - set(CATALOGUE)) == []
 
 
 def driver_class(spec):
