@@ -1035,7 +1035,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
         ModuleSpec(
             type="M3b",
             kind="misc",
-            slot_kind="misc",
+            slot_kind="any",
             label="PID feedback controller",
             ports=(
                 Port("set", "Set", "signal"),
