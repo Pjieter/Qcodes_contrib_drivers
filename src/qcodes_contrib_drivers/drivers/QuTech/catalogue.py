@@ -44,6 +44,8 @@ class ModuleSpec:
     ports_verified is False when the ports are inferred from the module index.
     backplane lists the port IDs wired to a rack iso-amp or DAC.
     S5 pulse modules have no backplane signal route by default.
+    A combined module with its own ISO out sits in a source slot, and its
+    output takes the slot's DAC, as the S3b or S4c board inside it does.
     """
 
     type: str
@@ -61,7 +63,9 @@ class ModuleSpec:
         if self.backplane is _DEFAULT_BACKPLANE:
             if self.kind == "measure":
                 ports = tuple(p.id for p in self.ports if p.kind in {"sense", "current"})
-            elif self.kind == "source" and not self.type.startswith("S5"):
+            elif (self.kind == "source" and not self.type.startswith("S5")) or (
+                self.kind == "combined" and any(p.id == "iso_out" for p in self.ports)
+            ):
                 ports = tuple(
                     p.id
                     for p in self.ports
@@ -101,6 +105,8 @@ def catalogue_json() -> dict[str, dict]:
 _DIFFERENTIAL_INPUT = (Port("in+", "in +", "sense"), Port("in-", "in -", "sense"))
 
 # Front-panel connectors shared by the VI modules.
+# docvia.htm: VIa is the S3b, M1b and M0 boards in one module, so it has its own
+# ISO out and goes in a source slot. The IV modules hold S4c, M2m and M0b (docivd.htm).
 _VI_PORTS = (
     Port("out+", "out +", "drive"),
     Port("out-", "out -", "drive"),
@@ -1096,7 +1102,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
         ModuleSpec(
             type="VIa",
             kind="combined",
-            slot_kind="measure",
+            slot_kind="source",
             label="Voltage source and current measurement",
             ports=_VI_PORTS,
             knobs=_VI_KNOBS,
@@ -1106,7 +1112,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
         ModuleSpec(
             type="VIb",
             kind="combined",
-            slot_kind="measure",
+            slot_kind="source",
             label="Voltage source and current measurement",
             ports=_VI_PORTS,
             knobs=_VI_KNOBS,
@@ -1116,7 +1122,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
         ModuleSpec(
             type="VIc",
             kind="combined",
-            slot_kind="measure",
+            slot_kind="source",
             label="Voltage source and current measurement",
             ports=_VI_PORTS,
             # The photo returns 404, so source and transimpedance gains are omitted.
@@ -1127,7 +1133,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
         ModuleSpec(
             type="VId",
             kind="combined",
-            slot_kind="measure",
+            slot_kind="source",
             label="Voltage source and current measurement",
             ports=_VI_PORTS,
             knobs=_VI_KNOBS,
@@ -1137,7 +1143,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
         ModuleSpec(
             type="IVa",
             kind="combined",
-            slot_kind="measure",
+            slot_kind="source",
             label="Current source and voltage measurement",
             ports=_IV_PORTS,
             knobs=(
@@ -1171,7 +1177,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
         ModuleSpec(
             type="IVb",
             kind="combined",
-            slot_kind="measure",
+            slot_kind="source",
             label="Current source and voltage measurement",
             ports=_IV_PORTS,  # ports inferred from the index row, unverified
             knobs=(),  # page not found
@@ -1182,7 +1188,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
         ModuleSpec(
             type="IVc",
             kind="combined",
-            slot_kind="measure",
+            slot_kind="source",
             label="Current source and voltage measurement",
             ports=_IV_PORTS,
             knobs=(
@@ -1216,7 +1222,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
         ModuleSpec(
             type="IVd",
             kind="combined",
-            slot_kind="measure",
+            slot_kind="source",
             label="Current source and voltage measurement",
             ports=_IV_PORTS,
             knobs=(

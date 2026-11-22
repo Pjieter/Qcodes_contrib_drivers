@@ -114,6 +114,9 @@ def test_json_round_trips():
         ("S5g", ()),
         ("M2m", ("in+", "in-")),
         ("S4c", ("out+", "out-")),
+        ("VIa", ("out+", "out-")),
+        ("IVd", ("out+", "out-")),
+        ("SM1a", ()),
         ("P1a", ("out_v", "out_10u", "out_100n", "in")),
     ],
 )
@@ -130,3 +133,12 @@ def test_s1h_has_a_driver():
     from qcodes_contrib_drivers.drivers.QuTech.S1h import S1h
 
     assert S1h.module_type == "S1h"
+
+
+@pytest.mark.parametrize("type_", ["VIa", "VIb", "VIc", "VId", "IVa", "IVb", "IVc", "IVd"])
+def test_combined_modules_with_iso_out_go_in_source_slots(type_):
+    assert CATALOGUE[type_].slot_kind == "source"
+
+
+def test_potentiostat_without_iso_out_goes_in_a_measure_slot():
+    assert CATALOGUE["SM1a"].slot_kind == "measure"
