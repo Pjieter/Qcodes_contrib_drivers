@@ -786,14 +786,15 @@ CATALOGUE: dict[str, ModuleSpec] = {
             label="Dual RF modulator",
             # The jacks come from s5j-frontpic.jpg while docs5j.htm is offline.
             ports=(
-                Port("mult_in_a", "Multiplier in", "signal"),
-                Port("level_in_a", "Level shift in", "signal"),
-                Port("rf_in_a", "RF in", "signal"),
-                Port("rf_out_a", "RF out", "signal"),
-                Port("mult_in_b", "Multiplier in", "signal"),
-                Port("level_in_b", "Level shift in", "signal"),
-                Port("rf_in_b", "RF in", "signal"),
-                Port("rf_out_b", "RF out", "signal"),
+                # The panel has two identical banks, upper (a) and lower (b).
+                Port("mult_in_a", "Upper multiplier in", "signal"),
+                Port("level_in_a", "Upper level shift in", "signal"),
+                Port("rf_in_a", "Upper RF in", "signal"),
+                Port("rf_out_a", "Upper RF out", "signal"),
+                Port("mult_in_b", "Lower multiplier in", "signal"),
+                Port("level_in_b", "Lower level shift in", "signal"),
+                Port("rf_in_b", "Lower RF in", "signal"),
+                Port("rf_out_b", "Lower RF out", "signal"),
             ),
             knobs=(),  # page not found
             doc_url=f"{_DOC}index-mod.htm",  # its own page docs5j.htm is not found
