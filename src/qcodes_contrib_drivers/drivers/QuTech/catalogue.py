@@ -13,6 +13,7 @@ PortKind = Literal["drive", "sense", "current", "gate", "signal"]
 SLOTS = {"source": ("Sa", "Sb", "Sc", "Sd"), "measure": ("Ma", "Mb")}
 _PKG = "qcodes_contrib_drivers.drivers.QuTech"
 _DOC = "https://qtwork.tudelft.nl/~schouten/ivvi/doc-mod/"
+_DEFAULT_BACKPLANE = ("<default>",)
 
 
 @dataclass(frozen=True)
@@ -41,6 +42,7 @@ class ModuleSpec:
     """Catalogue metadata for a virtual IVVI module.
 
     ports_verified is False when the ports are inferred from the module index.
+    backplane lists the port IDs wired to a rack iso-amp or DAC.
     """
 
     type: str
@@ -52,6 +54,25 @@ class ModuleSpec:
     doc_url: str
     driver: str
     ports_verified: bool = True
+    backplane: tuple[str, ...] = _DEFAULT_BACKPLANE
+
+    def __post_init__(self) -> None:
+        if self.backplane is _DEFAULT_BACKPLANE:
+            if self.kind == "measure":
+                ports = tuple(p.id for p in self.ports if p.kind in {"sense", "current"})
+            elif self.kind == "source":
+                ports = tuple(
+                    p.id
+                    for p in self.ports
+                    if p.kind in {"drive", "gate"}
+                    and p.id in {"out", "out+", "out-", "outA", "outB"}
+                )
+            else:
+                ports = ()
+            object.__setattr__(self, "backplane", ports)
+        unknown = set(self.backplane) - {p.id for p in self.ports}
+        if unknown:
+            raise ValueError(f"{self.type}: unknown backplane ports {sorted(unknown)}")
 
 
 def slots_for(slot_kind: str) -> tuple[str, ...]:
@@ -67,6 +88,7 @@ def catalogue_json() -> dict[str, dict]:
     for module_type, spec in CATALOGUE.items():
         entry = asdict(spec)
         entry["ports"] = [[port.id, port.label, port.kind] for port in spec.ports]
+        entry["backplane"] = list(spec.backplane)
         entry["knobs"] = [
             {**asdict(knob), "values": list(knob.values)} for knob in spec.knobs
         ]
@@ -417,8 +439,8 @@ CATALOGUE: dict[str, ModuleSpec] = {
             slot_kind="source",
             label="Dual current and voltage source",
             ports=(
-                Port("outA", "out A", "drive"),
-                Port("outB", "out B", "drive"),
+                Port("outA", "Upper source", "drive"),
+                Port("outB", "Lower source", "drive"),
             ),
             # Follows the prototype photo. The page also names an R-out switch
             # and a 1 nA range that the photo does not show.
@@ -469,8 +491,10 @@ CATALOGUE: dict[str, ModuleSpec] = {
                 Port("out_v", "Backplane voltage", "drive"),
                 Port("out_10u", "Backplane x10u", "drive"),
                 Port("out_100n", "Backplane x100n", "drive"),
-                Port("in", "in", "signal"),
+                Port("in", "in", "sense"),
             ),
+            # p1a-frontpic.jpg marks the backplane rows by slot type.
+            backplane=("out_v", "out_10u", "out_100n", "in"),
             knobs=(
                 Knob(
                     "reference",
@@ -621,11 +645,13 @@ CATALOGUE: dict[str, ModuleSpec] = {
             ports=(
                 Port("out_q", "Q out", "drive"),
                 Port("out_i", "I out", "drive"),
-                Port("outA", "Amplitude out A", "drive"),
-                Port("outB", "Amplitude out B", "drive"),
+                Port("outA", "A-OUT 1", "drive"),
+                Port("outB", "A-OUT 2", "drive"),
                 Port("trigger_in", "Electrical trigger in", "signal"),
                 Port("fibre_in", "Fibre trigger in", "signal"),
             ),
+            # docs5a.htm lists Q, I and the dual A output as the four pulse outputs.
+            backplane=("out_q", "out_i", "outA", "outB"),
             knobs=(),  # page lists no switches
             doc_url=f"{_DOC}docs5a.htm",
             driver=f"{_PKG}.S5a.S5a",
@@ -748,6 +774,9 @@ CATALOGUE: dict[str, ModuleSpec] = {
                 Port("in", "in", "signal"),
                 Port("out", "out", "drive"),
             ),
+            # docs5h.htm and s5h-frontpic.jpg show a front signal input and output.
+            # The DACs control the clamping limits.
+            backplane=(),
             knobs=(),  # page lists no switches
             doc_url=f"{_DOC}docs5h.htm",
             driver=f"{_PKG}.S5h.S5h",
@@ -762,6 +791,8 @@ CATALOGUE: dict[str, ModuleSpec] = {
                 Port("out", "out", "drive"),
                 Port("control", "Analog modulation control", "signal"),
             ),
+            # s5j-frontpic.jpg shows the RF input and output on the front panel.
+            backplane=(),
             knobs=(),  # page not found
             doc_url=f"{_DOC}index-mod.htm",  # its own page docs5j.htm is not found
             driver=f"{_PKG}.S5j.S5j",
@@ -860,6 +891,8 @@ CATALOGUE: dict[str, ModuleSpec] = {
                 Port("in", "in", "sense"),
                 Port("fibre_out", "Fibre out", "signal"),
             ),
+            # docm2g.htm sends the output over fibre to a separate receiver.
+            backplane=(),
             knobs=(),  # page lists no switches
             doc_url=f"{_DOC}docm2g.htm",
             driver=f"{_PKG}.M2g.M2g",
@@ -898,10 +931,8 @@ CATALOGUE: dict[str, ModuleSpec] = {
             kind="measure",
             slot_kind="measure",
             label="Fast current preamplifier",
-            ports=(
-                Port("in", "in", "current"),
-                Port("ref", "Reference in", "signal"),
-            ),
+            # m1h-frontpic.jpg identifies ground lift as pin 2 of the IN LEMO.
+            ports=(Port("in", "in", "current"),),
             knobs=(
                 Knob(
                     "gain",
@@ -941,10 +972,8 @@ CATALOGUE: dict[str, ModuleSpec] = {
             kind="measure",
             slot_kind="measure",
             label="50 kHz current preamplifier",
-            ports=(
-                Port("in", "in", "current"),
-                Port("ref", "Reference in", "signal"),
-            ),
+            # docm1g.htm identifies ground lift as pin 2 of the IN LEMO.
+            ports=(Port("in", "in", "current"),),
             knobs=(
                 Knob(
                     "postgain",

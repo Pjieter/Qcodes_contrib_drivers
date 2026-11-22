@@ -1,5 +1,6 @@
 import importlib
 import json
+from dataclasses import replace
 
 import pytest
 from qcodes.parameters import ManualParameter
@@ -35,6 +36,7 @@ def test_entry_is_well_formed(type_):
     assert spec.doc_url.startswith("https://qtwork.tudelft.nl/")
     assert len({p.id for p in spec.ports}) == len(spec.ports)
     assert all(p.kind in KINDS for p in spec.ports)
+    assert set(spec.backplane) <= {p.id for p in spec.ports}
     for k in spec.knobs:
         assert k.values and k.initial in k.values, k.name
 
@@ -91,9 +93,29 @@ def test_json_round_trips():
     data = catalogue_json()
     assert json.loads(json.dumps(data)) == data
     assert data["S4c"]["ports"][0] == ["out+", "out +", "drive"]
+    assert data["S4c"]["backplane"] == ["out+", "out-"]
     assert {name for name, entry in data.items() if not entry["ports_verified"]} == {
         "S5j", "IVb", "P2a", "P3", "F1a", "F1b"
     }
+
+
+@pytest.mark.parametrize(
+    ("type_", "ports"),
+    [
+        ("M2g", ()),
+        ("S5h", ()),
+        ("S5j", ()),
+        ("S5a", ("out_q", "out_i", "outA", "outB")),
+        ("P1a", ("out_v", "out_10u", "out_100n", "in")),
+    ],
+)
+def test_backplane_overrides(type_, ports):
+    assert CATALOGUE[type_].backplane == ports
+
+
+def test_backplane_rejects_an_unknown_port():
+    with pytest.raises(ValueError, match="unknown backplane ports"):
+        replace(CATALOGUE["S4c"], backplane=("unknown",))
 
 
 def test_s1h_has_a_driver():
