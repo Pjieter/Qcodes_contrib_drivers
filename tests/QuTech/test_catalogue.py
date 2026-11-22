@@ -95,7 +95,7 @@ def test_json_round_trips():
     assert data["S4c"]["ports"][0] == ["out+", "out +", "drive"]
     assert data["S4c"]["backplane"] == ["out+", "out-"]
     assert {name for name, entry in data.items() if not entry["ports_verified"]} == {
-        "S5j", "IVb", "P2a", "P3", "F1a", "F1b"
+        "IVb", "P2a", "P3", "F1a", "F1b"
     }
 
 
@@ -105,11 +105,19 @@ def test_json_round_trips():
         ("M2g", ()),
         ("S5h", ()),
         ("S5j", ()),
-        ("S5a", ("out_q", "out_i", "outA", "outB")),
+        ("S5a", ()),
+        ("S5b", ()),
+        ("S5c", ()),
+        ("S5d", ()),
+        ("S5e", ()),
+        ("S5f", ()),
+        ("S5g", ()),
+        ("M2m", ("in+", "in-")),
+        ("S4c", ("out+", "out-")),
         ("P1a", ("out_v", "out_10u", "out_100n", "in")),
     ],
 )
-def test_backplane_overrides(type_, ports):
+def test_backplane_routes(type_, ports):
     assert CATALOGUE[type_].backplane == ports
 
 

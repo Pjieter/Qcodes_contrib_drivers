@@ -43,6 +43,7 @@ class ModuleSpec:
 
     ports_verified is False when the ports are inferred from the module index.
     backplane lists the port IDs wired to a rack iso-amp or DAC.
+    S5 pulse modules have no backplane signal route by default.
     """
 
     type: str
@@ -60,7 +61,7 @@ class ModuleSpec:
         if self.backplane is _DEFAULT_BACKPLANE:
             if self.kind == "measure":
                 ports = tuple(p.id for p in self.ports if p.kind in {"sense", "current"})
-            elif self.kind == "source":
+            elif self.kind == "source" and not self.type.startswith("S5"):
                 ports = tuple(
                     p.id
                     for p in self.ports
@@ -504,8 +505,8 @@ CATALOGUE: dict[str, ModuleSpec] = {
                     doc="Selects the labelled potentiometer reference or charge setting. Defaults to the first listed position.",
                 ),
                 Knob(
-                    "output_swing",
-                    "Output swing",
+                    "range",
+                    "Range",
                     ("positive", "zero", "negative"),
                     "positive",
                     doc="Selects positive, zero or negative output. Defaults to the first listed position.",
@@ -650,8 +651,6 @@ CATALOGUE: dict[str, ModuleSpec] = {
                 Port("trigger_in", "Electrical trigger in", "signal"),
                 Port("fibre_in", "Fibre trigger in", "signal"),
             ),
-            # docs5a.htm lists Q, I and the dual A output as the four pulse outputs.
-            backplane=("out_q", "out_i", "outA", "outB"),
             knobs=(),  # page lists no switches
             doc_url=f"{_DOC}docs5a.htm",
             driver=f"{_PKG}.S5a.S5a",
@@ -754,6 +753,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
             kind="source",
             slot_kind="source",
             label="Fibre-isolated high-frequency source",
+            # docs5g.htm shows fibre signal input and front DAC limit controls.
             ports=(
                 Port("out", "out", "drive"),
                 Port("fibre_in", "Fibre in", "signal"),
@@ -774,9 +774,7 @@ CATALOGUE: dict[str, ModuleSpec] = {
                 Port("in", "in", "signal"),
                 Port("out", "out", "drive"),
             ),
-            # docs5h.htm and s5h-frontpic.jpg show a front signal input and output.
-            # The DACs control the clamping limits.
-            backplane=(),
+            # docs5h.htm shows front signal jacks and DAC clamping controls.
             knobs=(),  # page lists no switches
             doc_url=f"{_DOC}docs5h.htm",
             driver=f"{_PKG}.S5h.S5h",
@@ -785,18 +783,22 @@ CATALOGUE: dict[str, ModuleSpec] = {
             type="S5j",
             kind="source",
             slot_kind="source",
-            label="RF modulator",
-            ports=(  # ports inferred from the index row, unverified
-                Port("in", "in", "signal"),
-                Port("out", "out", "drive"),
-                Port("control", "Analog modulation control", "signal"),
+            label="Dual RF modulator",
+            # The jacks come from s5j-frontpic.jpg while docs5j.htm is offline.
+            ports=(
+                Port("mult_in_a", "Multiplier in", "signal"),
+                Port("level_in_a", "Level shift in", "signal"),
+                Port("rf_in_a", "RF in", "signal"),
+                Port("rf_out_a", "RF out", "signal"),
+                Port("mult_in_b", "Multiplier in", "signal"),
+                Port("level_in_b", "Level shift in", "signal"),
+                Port("rf_in_b", "RF in", "signal"),
+                Port("rf_out_b", "RF out", "signal"),
             ),
-            # s5j-frontpic.jpg shows the RF input and output on the front panel.
-            backplane=(),
             knobs=(),  # page not found
             doc_url=f"{_DOC}index-mod.htm",  # its own page docs5j.htm is not found
             driver=f"{_PKG}.S5j.S5j",
-            ports_verified=False,
+            ports_verified=True,
         ),
         ModuleSpec(
             type="M2d",
