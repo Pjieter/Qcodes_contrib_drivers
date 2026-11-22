@@ -1519,7 +1519,8 @@ class AndorIDus4xx(Instrument):
                 pbar.refresh()
                 time.sleep(1)
             pbar.postfix = status
-            pbar.n = pbar.total
+            if pbar.total is not None:
+                pbar.n = pbar.total
             pbar.refresh()
 
     def warm_up(self, target: int = 15, show_progress: bool = True) -> None:
@@ -1549,5 +1550,6 @@ class AndorIDus4xx(Instrument):
                 pbar.n = temp - initial
                 pbar.refresh()
                 time.sleep(1)
-            pbar.n = pbar.total
+            if pbar.total is not None:
+                pbar.n = pbar.total
             pbar.refresh()
